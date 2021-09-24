@@ -137,8 +137,52 @@ message MoveObjectRequest {
 }
 
 message MoveObjectResponse {
+    required ResponseStatus status = 1;
 
+    // This will be the new object ID
+    // Assigned to the moved object.
+    // NOTE : maybe object_id won't change on move..
+    // We can decide this later.
+    optional uint64 object_id = 2;
 }
 
+// ------------ RemoveObject Messages -----------------
 
+message RemoveObjectRequest {
+    required string api_key = 1;
 
+    // Object to delete.
+    required uint64 object_id = 2;
+}
+
+message RemoveObjectResponse {
+    required ResponseStatus status = 1;
+
+    // Potentially more to add later...
+}
+
+// ------------ Service definition -----------------
+
+service HootFsService {
+    rpc GetDirectoryContents(GetDiirectoryContentsRequest) 
+        returns (GetDirectoryContentsResponse);
+    
+    rpc MakeDirectory(MakeDirectoryRequest)
+        returns (MakeDirectoryResponse);
+
+    rpc AddNewFile(AddNewFileRequest)
+        returns (AddNewFileResponse);
+    
+    rpc UpdateFileContents(UpdateFileContentsRequest)
+        returns (UpdateFileContentsResponse);    
+
+    rpc GetFileContents(GetFileContentsRequest)
+        returns (GetFileContentsResponse);    
+
+    // Equal to rename.
+    rpc MoveObject(MoveObjectRequest)
+        returns (MoveObjectResponse);    
+
+    rpc RemoveObject(RemoveObjectRequest)
+        returns (RemoveObjectResponse);    
+}
