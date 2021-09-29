@@ -24,7 +24,7 @@ message UUID {
 // ------------ GetDiirectoryContents Messages -----------------
 
 message GetDirectoryContentsRequest {
-    optional string api_key = 1;
+    optional string session_key = 1;
 
     // The directory to get the contents of.
     // If not provided, HOME will be used.
@@ -51,7 +51,7 @@ message GetDirectoryContentsResponse {
 // ------------ MakeDirectory Messages -----------------
 
 message MakeDirectoryRequest {
-    optional string api_key = 1;
+    optional string session_key = 1;
 
     // This is the ID of the directory
     // the new directory will be created into.
@@ -72,7 +72,7 @@ message MakeDirectoryResponse {
 // ------------ AddNewFile Messages -----------------
 
 message AddNewFileRequest {
-    optional string api_key = 1;
+    optional string session_key = 1;
 
     // ID of directory to place folder in.
     optional UUID dir_id = 2;
@@ -96,7 +96,7 @@ message AddNewFileResponse {
 // ------------ UpdateFileContents Messages -----------------
 
 message UpdateFileContentsRequest {
-    optional string api_key = 1;
+    optional string session_key = 1;
 
     optional UUID file_id = 2;
 
@@ -115,7 +115,7 @@ message UpdateFileContentsResponse {
 // ------------ GetFileContents Messages -----------------
 
 message GetFileContentsRequest {
-    optional string api_key = 1;
+    optional string session_key = 1;
     
     // File to download.
     optional UUID file_id = 2; 
@@ -131,7 +131,7 @@ message GetFileContentsResponse {
 // ------------ MoveObject Messages -----------------
 
 message MoveObjectRequest {
-    optional string api_key = 1;
+    optional string session_key = 1;
 
     // Object to move.
     optional UUID object_id = 2; 
@@ -156,7 +156,7 @@ message MoveObjectResponse {
 // ------------ RemoveObject Messages -----------------
 
 message RemoveObjectRequest {
-    optional string api_key = 1;
+    optional string session_key = 1;
 
     // Object to delete.
     optional UUID object_id = 2;
