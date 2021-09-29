@@ -1,5 +1,7 @@
 
-// For now file and directory IDs will be uint64s.
+package hootfs.head
+
+// For now file and directory IDs will be UUIDs.
 // Generic ReponseStatus message to be included in 
 // all responses. (Should be first field of all reponses.)
 
@@ -10,18 +12,23 @@ message ResponseStatus {
         FAILURE = 2;  
     }
 
-    required StatusCode code = 1;
+    optional StatusCode code = 1;
     optional string res_message = 2;
+}
+
+// UUID message structure
+message UUID {
+    optional bytes value = 1;
 }
 
 // ------------ GetDiirectoryContents Messages -----------------
 
 message GetDirectoryContentsRequest {
-    required string api_key = 1;
+    optional string session_key = 1;
 
     // The directory to get the contents of.
     // If not provided, HOME will be used.
-    optional uint64 dir_id = 2;
+    optional UUID dir_id = 2;
 }
 
 message ObjectInfo {
@@ -31,47 +38,47 @@ message ObjectInfo {
     }
 
     // ID and type of the object.
-    required uint64 object_id = 1;
-    required ObjectType object_type = 2;
-    required string object_name = 3;
+    optional UUID object_id = 1;
+    optional ObjectType object_type = 2;
+    optional string object_name = 3;
 }
 
 message GetDirectoryContentsResponse {
-    required ResponseStatus status = 1;
+    optional ResponseStatus status = 1;
     repeated ObjectInfo objects = 2;
 }
 
 // ------------ MakeDirectory Messages -----------------
 
 message MakeDirectoryRequest {
-    required string api_key = 1;
+    optional string session_key = 1;
 
     // This is the ID of the directory
     // the new directory will be created into.
     // If this is not provided, HOME will be used.
-    optional uint64 dir_id = 2;
+    optional UUID dir_id = 2;
 
     // This is the name of the new directory.
-    required string dir_name = 3; 
+    optional string dir_name = 3; 
 }
 
 message MakeDirectoryResponse {
-    required ResponseStatus status = 1;
+    optional ResponseStatus status = 1;
     
     // The ID of the directory created.
-    optional uint64 dir_id = 2;
+    optional UUID dir_id = 2;
 }
 
 // ------------ AddNewFile Messages -----------------
 
 message AddNewFileRequest {
-    required string api_key = 1;
+    optional string session_key = 1;
 
     // ID of directory to place folder in.
-    optional uint64 dir_id = 2;
+    optional UUID dir_id = 2;
 
     // Name of file to create.
-    required string file_name = 3;
+    optional string file_name = 3;
 
     // Contents of file being added...
     // If not provided, an empty file
@@ -80,18 +87,18 @@ message AddNewFileRequest {
 }
 
 message AddNewFileResponse {
-    required ResponseStatus status = 1;
+    optional ResponseStatus status = 1;
     
     // The ID of the file created.
-    optional uint64 file_id = 2;
+    optional UUID file_id = 2;
 }
 
 // ------------ UpdateFileContents Messages -----------------
 
 message UpdateFileContentsRequest {
-    required string api_key = 1;
+    optional string session_key = 1;
 
-    required uint64 file_id = 2;
+    optional UUID file_id = 2;
 
     // The given file's contents will be
     // set to contents. 
@@ -99,7 +106,7 @@ message UpdateFileContentsRequest {
 }
 
 message UpdateFileContentsResponse {
-    required ResponseStatus status = 1;
+    optional ResponseStatus status = 1;
     
     // Can't think of anything else to
     // put in here yet.
@@ -108,14 +115,14 @@ message UpdateFileContentsResponse {
 // ------------ GetFileContents Messages -----------------
 
 message GetFileContentsRequest {
-    required string api_key = 1;
+    optional string session_key = 1;
     
     // File to download.
-    required uint64 file_id = 2; 
+    optional UUID file_id = 2; 
 }
 
 message GetFileContentsResponse {
-    required ResponseStatus status = 1;
+    optional ResponseStatus status = 1;
     
     // Contents of file. (If found)
     optional bytes contents = 2;
@@ -124,39 +131,39 @@ message GetFileContentsResponse {
 // ------------ MoveObject Messages -----------------
 
 message MoveObjectRequest {
-    required string api_key = 1;
+    optional string session_key = 1;
 
     // Object to move.
-    required uint64 object_id = 2; 
+    optional UUID object_id = 2; 
 
     // Directory to move to.
-    optional uint64 dir_id = 3;
+    optional UUID dir_id = 3;
 
     // New name of object. 
     optional string new_name = 4;
 }
 
 message MoveObjectResponse {
-    required ResponseStatus status = 1;
+    optional ResponseStatus status = 1;
 
     // This will be the new object ID
     // Assigned to the moved object.
     // NOTE : maybe object_id won't change on move..
     // We can decide this later.
-    optional uint64 object_id = 2;
+    optional UUID object_id = 2;
 }
 
 // ------------ RemoveObject Messages -----------------
 
 message RemoveObjectRequest {
-    required string api_key = 1;
+    optional string session_key = 1;
 
     // Object to delete.
-    required uint64 object_id = 2;
+    optional UUID object_id = 2;
 }
 
 message RemoveObjectResponse {
-    required ResponseStatus status = 1;
+    optional ResponseStatus status = 1;
 
     // Potentially more to add later...
 }
