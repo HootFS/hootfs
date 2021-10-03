@@ -1,5 +1,9 @@
 
-package hootfs.head
+syntax = "proto3";
+
+package hootfs.head;
+
+option go_package = "github.com/hootfs/hootfs/protos";
 
 // For now file and directory IDs will be UUIDs.
 // Generic ReponseStatus message to be included in 
@@ -12,23 +16,23 @@ message ResponseStatus {
         FAILURE = 2;  
     }
 
-    optional StatusCode code = 1;
-    optional string res_message = 2;
+     StatusCode code = 1;
+     string res_message = 2;
 }
 
 // UUID message structure
 message UUID {
-    optional bytes value = 1;
+     bytes value = 1;
 }
 
 // ------------ GetDiirectoryContents Messages -----------------
 
 message GetDirectoryContentsRequest {
-    optional string session_key = 1;
+     string session_key = 1;
 
     // The directory to get the contents of.
     // If not provided, HOME will be used.
-    optional UUID dir_id = 2;
+     UUID dir_id = 2;
 }
 
 message ObjectInfo {
@@ -38,75 +42,75 @@ message ObjectInfo {
     }
 
     // ID and type of the object.
-    optional UUID object_id = 1;
-    optional ObjectType object_type = 2;
-    optional string object_name = 3;
+     UUID object_id = 1;
+     ObjectType object_type = 2;
+     string object_name = 3;
 }
 
 message GetDirectoryContentsResponse {
-    optional ResponseStatus status = 1;
+     ResponseStatus status = 1;
     repeated ObjectInfo objects = 2;
 }
 
 // ------------ MakeDirectory Messages -----------------
 
 message MakeDirectoryRequest {
-    optional string session_key = 1;
+     string session_key = 1;
 
     // This is the ID of the directory
     // the new directory will be created into.
     // If this is not provided, HOME will be used.
-    optional UUID dir_id = 2;
+     UUID dir_id = 2;
 
     // This is the name of the new directory.
-    optional string dir_name = 3; 
+     string dir_name = 3; 
 }
 
 message MakeDirectoryResponse {
-    optional ResponseStatus status = 1;
+     ResponseStatus status = 1;
     
     // The ID of the directory created.
-    optional UUID dir_id = 2;
+     UUID dir_id = 2;
 }
 
 // ------------ AddNewFile Messages -----------------
 
 message AddNewFileRequest {
-    optional string session_key = 1;
+     string session_key = 1;
 
     // ID of directory to place folder in.
-    optional UUID dir_id = 2;
+     UUID dir_id = 2;
 
     // Name of file to create.
-    optional string file_name = 3;
+     string file_name = 3;
 
     // Contents of file being added...
     // If not provided, an empty file
     // will be created.
-    optional bytes contents = 4;
+     bytes contents = 4;
 }
 
 message AddNewFileResponse {
-    optional ResponseStatus status = 1;
+     ResponseStatus status = 1;
     
     // The ID of the file created.
-    optional UUID file_id = 2;
+     UUID file_id = 2;
 }
 
 // ------------ UpdateFileContents Messages -----------------
 
 message UpdateFileContentsRequest {
-    optional string session_key = 1;
+     string session_key = 1;
 
-    optional UUID file_id = 2;
+     UUID file_id = 2;
 
     // The given file's contents will be
     // set to contents. 
-    optional bytes contents = 3;
+     bytes contents = 3;
 }
 
 message UpdateFileContentsResponse {
-    optional ResponseStatus status = 1;
+     ResponseStatus status = 1;
     
     // Can't think of anything else to
     // put in here yet.
@@ -115,55 +119,55 @@ message UpdateFileContentsResponse {
 // ------------ GetFileContents Messages -----------------
 
 message GetFileContentsRequest {
-    optional string session_key = 1;
+     string session_key = 1;
     
     // File to download.
-    optional UUID file_id = 2; 
+     UUID file_id = 2; 
 }
 
 message GetFileContentsResponse {
-    optional ResponseStatus status = 1;
+     ResponseStatus status = 1;
     
     // Contents of file. (If found)
-    optional bytes contents = 2;
+     bytes contents = 2;
 }
 
 // ------------ MoveObject Messages -----------------
 
 message MoveObjectRequest {
-    optional string session_key = 1;
+     string session_key = 1;
 
     // Object to move.
-    optional UUID object_id = 2; 
+     UUID object_id = 2; 
 
     // Directory to move to.
-    optional UUID dir_id = 3;
+     UUID dir_id = 3;
 
     // New name of object. 
-    optional string new_name = 4;
+     string new_name = 4;
 }
 
 message MoveObjectResponse {
-    optional ResponseStatus status = 1;
+     ResponseStatus status = 1;
 
     // This will be the new object ID
     // Assigned to the moved object.
     // NOTE : maybe object_id won't change on move..
     // We can decide this later.
-    optional UUID object_id = 2;
+     UUID object_id = 2;
 }
 
 // ------------ RemoveObject Messages -----------------
 
 message RemoveObjectRequest {
-    optional string session_key = 1;
+     string session_key = 1;
 
     // Object to delete.
-    optional UUID object_id = 2;
+     UUID object_id = 2;
 }
 
 message RemoveObjectResponse {
-    optional ResponseStatus status = 1;
+     ResponseStatus status = 1;
 
     // Potentially more to add later...
 }
@@ -171,7 +175,7 @@ message RemoveObjectResponse {
 // ------------ Service definition -----------------
 
 service HootFsService {
-    rpc GetDirectoryContents(GetDiirectoryContentsRequest) 
+    rpc GetDirectoryContents(GetDirectoryContentsRequest) 
         returns (GetDirectoryContentsResponse);
     
     rpc MakeDirectory(MakeDirectoryRequest)
