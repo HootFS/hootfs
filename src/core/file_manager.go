@@ -2,11 +2,12 @@ package hootfs
 
 import "errors"
 
-type file_manager interface {
+type FileManager interface {
 	CreateFile(filename string) error
 	WriteFile(filename string, content []byte) error
 	ReadFile(filename string) ([]byte, error)
 	DeleteFile(filename string) error
+	CreateDirectory(directory_name string) error
 	DeleteDriectory(directory_name string) error
 	GetDirectoryContents(direcotry_name string) ([]FileObject, error)
 }
@@ -14,8 +15,8 @@ type file_manager interface {
 type FileType int
 
 const (
-	file FileType = iota
-	directory
+	File FileType = iota + 1
+	Directory
 )
 
 type FileObject struct {
