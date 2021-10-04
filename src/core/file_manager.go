@@ -2,20 +2,26 @@ package hootfs
 
 import "errors"
 
-type file_manager interface {
+type FileManager interface {
+	// File Operations
 	CreateFile(filename string) error
 	WriteFile(filename string, content []byte) error
 	ReadFile(filename string) ([]byte, error)
 	DeleteFile(filename string) error
+	MoveFile(old_filename string, new_filename string) error
+
+	// Directory Operations
+	CreateDirectory(directory_name string) error
 	DeleteDriectory(directory_name string) error
 	GetDirectoryContents(direcotry_name string) ([]FileObject, error)
+	MoveDirectory(old_direcotry_string string, new_directory_string string)
 }
 
 type FileType int
 
 const (
-	file FileType = iota
-	directory
+	FILE FileType = iota + 1
+	DIRECTORY
 )
 
 type FileObject struct {
