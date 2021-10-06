@@ -36,7 +36,6 @@ var ErrUnimplemented = errors.New("Method unimplemented")
 
 func (manager LocalFileManager) WriteFile(filename string, contents []byte) error {
 	return ErrUnimplemented
-
 }
 
 func (manager LocalFileManager) ReadFile(filename string) ([]byte, error) {
