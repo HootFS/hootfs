@@ -21,8 +21,8 @@ func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 		if len(args) > 2 {
 			fmt.Fprintln(os.Stderr, "usage: read [filename]")
 		}
-		req := head.GetDirectoryContentsRequest{} // TODO do a proper initialization of this
-		rpcClient.GetDirectoryContents(context.Background(), &req)
+		req := head.GetFileContentsRequest{} // TODO do a proper initialization of this
+		rpcClient.GetFileContents(context.Background(), &req)
 	default:
 		fmt.Fprintf(os.Stderr, "no such command %s\n", args[0])
 	}
