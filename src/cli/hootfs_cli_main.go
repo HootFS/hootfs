@@ -1,8 +1,22 @@
 package main
 
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func executeCommand(args []string) {
+	// TODO add
+}
 
 func main() {
-	fmt.Println("hello from CLI!")
-
+	sc := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Print("hootfs> ")
+		sc.Scan()
+		cmd := sc.Text()
+		executeCommand(strings.Fields(cmd))
+	}
 }
