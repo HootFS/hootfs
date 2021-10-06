@@ -23,6 +23,8 @@ func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 		}
 		req := head.GetDirectoryContentsRequest{} // TODO do a proper initialization of this
 		rpcClient.GetDirectoryContents(context.Background(), &req)
+	default:
+		fmt.Fprintf(os.Stderr, "no such command %s\n", args[0])
 	}
 }
 
