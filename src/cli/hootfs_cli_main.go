@@ -18,11 +18,24 @@ func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 	}
 	switch args[0] {
 	case "read":
-		if len(args) > 2 {
+		if len(args) != 2 {
 			fmt.Fprintln(os.Stderr, "usage: read [filename]")
+			return
 		}
 		req := head.GetFileContentsRequest{} // TODO do a proper initialization of this
 		rpcClient.GetFileContents(context.Background(), &req)
+	case "write":
+		if len(args) != 3 {
+			fmt.Fprintln(os.Stderr, "usage: write [dst] [src]")
+			return
+		}
+		contents, err := os.ReadFile(args[2])
+		if err != nil {
+			fmt.Fprint(os.Stderr, err)
+			return
+		}
+		req := head.AddNewFileRequest{Contents: contents, FileName: args[2]} // TODO add uuid
+		rpcClient.AddNewFile(context.Background(), &req)
 	default:
 		fmt.Fprintf(os.Stderr, "no such command %s\n", args[0])
 	}
