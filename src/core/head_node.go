@@ -1,190 +1,191 @@
-package hootfs
+package main
 
 import (
 	"context"
-	"errors"
+	"log"
+	"net"
 
-	head "github.com/hootfs/hootfs/protos"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/google/uuid"
+	head "github.com/hootfs/hootfs/protos"
+)
+
+const (
+	port = ":50051"
 )
 
 type fileManagerServer struct {
-    mapping map[localUUID]object
+	head.UnimplementedHootFsServiceServer
+	directories map[*localUUID]directoryObject
+	files       map[*localUUID]fileObject
 }
 
 func (s *fileManagerServer) GetDirectoryContents(
 	ctx context.Context, request *head.GetDirectoryContentsRequest) (*head.GetDirectoryContentsResponse, error) {
-    dir, ok := s.mapping[toLocal(request.DirId)]
+	dir, ok := s.directories[protoToLocalUUID(request.DirId)]
 
-    if !ok {
-        return &head.GetDirectoryContentsResponse{}, status.Error(codes.InvalidArgument,
-            "Given ID is not defined!")
-    }
+	if !ok {
+		return &head.GetDirectoryContentsResponse{}, status.Error(codes.InvalidArgument,
+			"Given ID is not defined!")
+	}
 
-    contents, err := dir.getDirectoryContents()
+	contents, err := dir.getDirectoryContents()
 
-    if err != nil {
-        return &head.GetDirectoryContentsResponse{}, status.Error(codes.InvalidArgument,
-            "File is not a directory!")
-    }
+	if err != nil {
+		return &head.GetDirectoryContentsResponse{}, status.Error(codes.InvalidArgument,
+			"File is not a directory!")
+	}
 
-    // Success.
-    resp := head.GetDirectoryContentsResponse{}
-    
-    for _, uuid := range contents {
-        obj := s.mapping[uuid]
+	// Success.
+	resp := head.GetDirectoryContentsResponse{}
 
-        objType := head.ObjectInfo_FILE
-        if obj.isDirectory() {
-            objType = head.ObjectInfo_DIRECTORY
-        }
+	for _, id := range *contents {
+		objInfo := head.ObjectInfo{
+			ObjectId: id.toProto(),
+		}
 
-        objInfo := head.ObjectInfo{
-            ObjectId: uuid.toProto(), 
-            ObjectType: objType,
-            ObjectName: obj.getName(),
-        }
+		child_dir, exists := s.directories[&id]
+		if exists {
+			objInfo.ObjectName = child_dir.name
+			objInfo.ObjectType = head.ObjectInfo_DIRECTORY
+		}
 
-        resp.Objects = append(resp.Objects, &objInfo)
-    }
+		child_file, exists := s.files[&id]
+		if exists {
+			objInfo.ObjectName = child_file.name
+			objInfo.ObjectType = head.ObjectInfo_FILE
+		}
+
+		resp.Objects = append(resp.Objects, &objInfo)
+	}
 
 	return &head.GetDirectoryContentsResponse{}, nil
 }
 
 func (s *fileManagerServer) MakeDirectory(
 	ctx context.Context, request *head.MakeDirectoryRequest) (*head.MakeDirectoryResponse, error) {
-	return &head.MakeDirectoryResponse{}, status.Error(codes.Unimplemented, "")
+	parent_dir, exists := s.directories[protoToLocalUUID(request.DirId)]
+
+	if !exists {
+		return nil, status.Error(codes.InvalidArgument, "Requested parent directory does not exist")
+	}
+
+	// Make directory somewhere
+	directory_uuid, err := uuid.NewUUID()
+	if err != nil {
+		// Report error and return.
+	}
+	new_uuid := localUUID{value: directory_uuid}
+	parent_dir.directories = append(parent_dir.directories, new_uuid)
+
+	// s.mapping[uuid.]
+	return &head.MakeDirectoryResponse{DirId: new_uuid.toProto()}, nil
 }
 
 func (s *fileManagerServer) AddNewFile(
 	ctx context.Context, request *head.AddNewFileRequest) (*head.AddNewFileResponse, error) {
+	parent_dir, exists := s.directories[protoToLocalUUID(request.DirId)]
+
+	if !exists {
+		return nil, status.Error(codes.InvalidArgument, "Requested parent directory does not exist")
+	}
+
+	file_uuid, err := uuid.NewUUID()
+	if err != nil {
+		// Report error and return
+	}
+	new_uuid := localUUID{value: file_uuid}
+	parent_dir.files = append(parent_dir.files, new_uuid)
+
 	return &head.AddNewFileResponse{}, nil
 }
 
 func (s *fileManagerServer) UpdateFileContents(
 	ctx context.Context, request *head.UpdateFileContentsRequest) (*head.UpdateFileContentsResponse, error) {
-	return &head.UpdateFileContentsResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 
 func (s *fileManagerServer) GetFileContents(
 	ctx context.Context, request *head.GetFileContentsRequest) (*head.GetFileContentsResponse, error) {
-	return &head.GetFileContentsResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 func (s *fileManagerServer) MoveObject(
 	ctx context.Context, request *head.MoveObjectRequest) (*head.MoveObjectResponse, error) {
-	return &head.MoveObjectResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 func (s *fileManagerServer) RemoveObject(
 	ctx context.Context, request *head.RemoveObjectRequest) (*head.RemoveObjectResponse, error) {
-	return &head.RemoveObjectResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
-
-/*
-type fileMapping struct {
-    mapping map[localUUID]object
-}
-
-var UnknownID = errors.New("Given ID is not defined!")
-
-func (fm *fileMapping) getDirectoryContents(id localUUID) ([]localUUID, error) {
-    dir, ok := fm.mapping[id]
-
-    if !ok {
-        return nil, UnknownID
-    }
-
-    return dir.getDirectoryContents()
-}
-
-
-
-func (fm *fileMapping) addFile(id localUUID) ([]localUUID, error) {
-    return nil, nil
-}
-*/
 
 // The number of bytes in a UUID (For now)
 const UUIDSize uint8 = 16
 
 // Key into the file mapping.
 type localUUID struct {
-    value [UUIDSize]byte
+	value [UUIDSize]byte
 }
 
 func (lu *localUUID) toProto() *head.UUID {
-    return &head.UUID{Value: lu.value[:]}
+	return &head.UUID{Value: lu.value[:]}
 }
 
-func toLocal(pru *head.UUID) localUUID {
-    var byts [UUIDSize]byte
+func protoToLocalUUID(pru *head.UUID) *localUUID {
+	var byts [UUIDSize]byte
 
-    copy(byts[:], pru.Value)    
-
-    return localUUID{value: byts}
+	copy(byts[:], pru.Value)
+	return &localUUID{value: byts}
 }
-
-type object interface {
-    getName() string
-
-    isDirectory() bool
-
-    // Directory actions.
-    getDirectoryContents() ([]localUUID, error)
-
-    // File actions.
-    getFileContents() ([]byte, error)
-}
-
 
 // Object representing a directory.
 type directoryObject struct {
-    name string
-    contents []localUUID
+	name        string
+	directories []localUUID
+	files       []localUUID
 }
 
 func (d *directoryObject) getName() string {
-    return d.name
+	return d.name
 }
 
-func (d *directoryObject) isDirectory() bool {
-    return true
-}
-
-func (d *directoryObject) getDirectoryContents() ([]localUUID, error) {
-    return d.contents, nil
-}
-
-var NotAFile = errors.New("Cannot get file contents from a direcotry!")
-
-func (d *directoryObject) getFileContents() ([]byte, error) {
-    return nil, NotAFile 
+func (d *directoryObject) getDirectoryContents() (*[]localUUID, error) {
+	out := []localUUID{}
+	copy(out, d.directories)
+	out = append(out, d.files...)
+	return &out, nil
 }
 
 type fileObject struct {
-    name string
+	name string
 
-    // NOTE, this will be taken out later.
-    // right now since everything is stored on one
-    // machine, just a local path is needed to locate it.
-    localPath string
+	// NOTE, this will be taken out later.
+	// right now since everything is stored on one
+	// machine, just a local path is needed to locate it.
+	localPath string
 }
 
 func (fo *fileObject) getName() string {
-    return fo.name
-}
-
-func (fo *fileObject) isDirectory() bool {
-    return false 
-}
-
-var NotADirectory = errors.New("Cannot get the contents of a file!")
-
-func (fo *fileObject) getDirectoryContents() ([]localUUID, error) {
-    return nil, NotADirectory
+	return fo.name
 }
 
 func (fo *fileObject) getFileContents() ([]byte, error) {
-    // Actuall perform read!
+	return nil, nil
+	// Actually perform read!
 }
 
+func main() {
+	lis, err := net.Listen("tcp", port)
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+
+	head.RegisterHootFsServiceServer(s, &fileManagerServer{})
+	log.Printf("Server listening at %v", lis.Addr())
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
+}
