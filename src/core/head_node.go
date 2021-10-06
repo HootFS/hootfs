@@ -47,3 +47,56 @@ func (s *fileManagerServer) RemoveObject(
 	ctx context.Context, request *head.RemoveObjectRequest) (*head.RemoveObjectResponse, error) {
 	return &head.RemoveObjectResponse{}, nil
 }
+
+// The number of bytes in a UUID (For now)
+const UUIDSize uint8 = 2
+
+// Key into the file mapping.
+type localUUID struct {
+    value [UUIDSize]byte
+}
+
+
+// Object representing a directory.
+type directoryObject struct {
+    name string
+    contents []localUUID
+}
+
+func (d *directoryObject) getName() string {
+    return d.name;
+}
+
+func (d *directoryObject) isDirectory() bool {
+    return true;
+}
+
+func (d *directoryObject) getContents() []localUUID {
+    return d.contents;
+}
+
+
+
+type fileObject struct {
+    name string
+
+    // NOTE, this will be taken out later.
+    // right now since everything is stored on one
+    // machine, just a local path is needed to locate it.
+    localPath string
+}
+
+// Code for dealing with id to path mappings for all objects.
+type object interface {
+    getName() string
+
+    // Directory actions.
+    isDirectory() bool
+    getContents() []localUUID
+
+    // File actions.
+    isFile() bool
+    read() []byte
+}
+
+
