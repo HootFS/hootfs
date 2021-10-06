@@ -1,6 +1,9 @@
 package hootfs
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
 type FileManager interface {
 	// File Operations
@@ -17,6 +20,7 @@ type FileManager interface {
 	MoveDirectory(old_direcotry_string string, new_directory_string string)
 }
 
+// Enum for the the type of file. Either a file or a directory.
 type FileType int
 
 const (
@@ -24,38 +28,53 @@ const (
 	DIRECTORY
 )
 
+// A FileObject struct holds a file's name and its type.
 type FileObject struct {
 	relative_filename string
 	filetype          FileType
 }
 
+// LocalFileManger is a implementation of the file manager interface for storing files locally
 type LocalFileManager struct {
+	source_directory string
 }
 
 var ErrUnimplemented = errors.New("Method unimplemented")
 
+// Write contents to a file
 func (manager LocalFileManager) WriteFile(filename string, contents []byte) error {
-	return ErrUnimplemented
-
+	return os.WriteFile(filename, contents, 0666)
 }
 
 func (manager LocalFileManager) ReadFile(filename string) ([]byte, error) {
-	return nil, ErrUnimplemented
+	return os.ReadFile(filename)
 }
 
 //
 func (manager LocalFileManager) DeleteFile(filename string) error {
-	return ErrUnimplemented
+	return os.Remove(filename)
 }
 
 func (manager LocalFileManager) CreateDirectory(directory_name string) error {
-	return ErrUnimplemented
+	return os.Mkdir(directory_name, 0755)
 }
 
 func (manager LocalFileManager) DeleteDirectory(directory_name string) error {
-	return ErrUnimplemented
+	return os.Remove(directory_name)
 }
 
 func (manager LocalFileManager) GetDirectoryContents(directory_name string) ([]FileObject, error) {
-	return nil, ErrUnimplemented
+	contents, err := os.ReadDir(directory_name)
+
+	files := make([]FileObject, len(contents))
+
+	for i, object := range contents {
+		files[i] = FileObject{relative_filename: object.Name()}
+		if object.IsDir() {
+			files[i].filetype = DIRECTORY
+		} else {
+			files[i].filetype = FILE
+		}
+	}
+	return files, err
 }
