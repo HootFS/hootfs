@@ -16,23 +16,23 @@ message ResponseStatus {
         FAILURE = 2;  
     }
 
-     StatusCode code = 1;
-     string res_message = 2;
+    StatusCode code = 1;
+    string res_message = 2;
 }
 
 // UUID message structure
 message UUID {
-     bytes value = 1;
+    bytes value = 1;
 }
 
 // ------------ GetDiirectoryContents Messages -----------------
 
 message GetDirectoryContentsRequest {
-     string session_key = 1;
+    string session_key = 1;
 
     // The directory to get the contents of.
     // If not provided, HOME will be used.
-     UUID dir_id = 2;
+    UUID dir_id = 2;
 }
 
 message ObjectInfo {
@@ -42,75 +42,75 @@ message ObjectInfo {
     }
 
     // ID and type of the object.
-     UUID object_id = 1;
-     ObjectType object_type = 2;
-     string object_name = 3;
+    UUID object_id = 1;
+    ObjectType object_type = 2;
+    string object_name = 3;
 }
 
 message GetDirectoryContentsResponse {
-     ResponseStatus status = 1;
+    ResponseStatus status = 1;
     repeated ObjectInfo objects = 2;
 }
 
 // ------------ MakeDirectory Messages -----------------
 
 message MakeDirectoryRequest {
-     string session_key = 1;
+    string session_key = 1;
 
     // This is the ID of the directory
     // the new directory will be created into.
     // If this is not provided, HOME will be used.
-     UUID dir_id = 2;
+    UUID dir_id = 2;
 
     // This is the name of the new directory.
-     string dir_name = 3; 
+    string dir_name = 3; 
 }
 
 message MakeDirectoryResponse {
-     ResponseStatus status = 1;
+    ResponseStatus status = 1;
     
     // The ID of the directory created.
-     UUID dir_id = 2;
+    UUID dir_id = 2;
 }
 
 // ------------ AddNewFile Messages -----------------
 
 message AddNewFileRequest {
-     string session_key = 1;
+    string session_key = 1;
 
     // ID of directory to place folder in.
-     UUID dir_id = 2;
+    UUID dir_id = 2;
 
     // Name of file to create.
-     string file_name = 3;
+    string file_name = 3;
 
     // Contents of file being added...
     // If not provided, an empty file
     // will be created.
-     bytes contents = 4;
+    bytes contents = 4;
 }
 
 message AddNewFileResponse {
-     ResponseStatus status = 1;
+    ResponseStatus status = 1;
     
     // The ID of the file created.
-     UUID file_id = 2;
+    UUID file_id = 2;
 }
 
 // ------------ UpdateFileContents Messages -----------------
 
 message UpdateFileContentsRequest {
-     string session_key = 1;
+    string session_key = 1;
 
-     UUID file_id = 2;
+    UUID file_id = 2;
 
     // The given file's contents will be
     // set to contents. 
-     bytes contents = 3;
+    bytes contents = 3;
 }
 
 message UpdateFileContentsResponse {
-     ResponseStatus status = 1;
+    ResponseStatus status = 1;
     
     // Can't think of anything else to
     // put in here yet.
@@ -119,55 +119,55 @@ message UpdateFileContentsResponse {
 // ------------ GetFileContents Messages -----------------
 
 message GetFileContentsRequest {
-     string session_key = 1;
+    string session_key = 1;
     
     // File to download.
-     UUID file_id = 2; 
+    UUID file_id = 2; 
 }
 
 message GetFileContentsResponse {
-     ResponseStatus status = 1;
+    ResponseStatus status = 1;
     
     // Contents of file. (If found)
-     bytes contents = 2;
+    bytes contents = 2;
 }
 
 // ------------ MoveObject Messages -----------------
 
 message MoveObjectRequest {
-     string session_key = 1;
+    string session_key = 1;
 
     // Object to move.
-     UUID object_id = 2; 
+    UUID object_id = 2; 
 
     // Directory to move to.
-     UUID dir_id = 3;
+    UUID dir_id = 3;
 
     // New name of object. 
-     string new_name = 4;
+    string new_name = 4;
 }
 
 message MoveObjectResponse {
-     ResponseStatus status = 1;
+    ResponseStatus status = 1;
 
     // This will be the new object ID
     // Assigned to the moved object.
     // NOTE : maybe object_id won't change on move..
     // We can decide this later.
-     UUID object_id = 2;
+    UUID object_id = 2;
 }
 
 // ------------ RemoveObject Messages -----------------
 
 message RemoveObjectRequest {
-     string session_key = 1;
+    string session_key = 1;
 
     // Object to delete.
-     UUID object_id = 2;
+    UUID object_id = 2;
 }
 
 message RemoveObjectResponse {
-     ResponseStatus status = 1;
+    ResponseStatus status = 1;
 
     // Potentially more to add later...
 }
