@@ -10,13 +10,46 @@ import (
 )
 
 type fileManagerServer struct {
+    mapping map[localUUID]object
 }
 
 func (s *fileManagerServer) GetDirectoryContents(
 	ctx context.Context, request *head.GetDirectoryContentsRequest) (*head.GetDirectoryContentsResponse, error) {
+    dir, ok := s.mapping[toLocal(request.DirId)]
 
-	return &head.GetDirectoryContentsResponse{}, status.Error(codes.Unimplemented,
-		"Unimplemented")
+    if !ok {
+        return &head.GetDirectoryContentsResponse{}, status.Error(codes.InvalidArgument,
+            "Given ID is not defined!")
+    }
+
+    contents, err := dir.getDirectoryContents()
+
+    if err != nil {
+        return &head.GetDirectoryContentsResponse{}, status.Error(codes.InvalidArgument,
+            "File is not a directory!")
+    }
+
+    // Success.
+    resp := head.GetDirectoryContentsResponse{}
+    
+    for _, uuid := range contents {
+        obj := s.mapping[uuid]
+
+        objType := head.ObjectInfo_FILE
+        if obj.isDirectory() {
+            objType = head.ObjectInfo_DIRECTORY
+        }
+
+        objInfo := head.ObjectInfo{
+            ObjectId: uuid.toProto(), 
+            ObjectType: objType,
+            ObjectName: obj.getName(),
+        }
+
+        resp.Objects = append(resp.Objects, &objInfo)
+    }
+
+	return &head.GetDirectoryContentsResponse{}, nil
 }
 
 func (s *fileManagerServer) MakeDirectory(
@@ -47,16 +80,54 @@ func (s *fileManagerServer) RemoveObject(
 	return &head.RemoveObjectResponse{}, nil
 }
 
+/*
+type fileMapping struct {
+    mapping map[localUUID]object
+}
+
+var UnknownID = errors.New("Given ID is not defined!")
+
+func (fm *fileMapping) getDirectoryContents(id localUUID) ([]localUUID, error) {
+    dir, ok := fm.mapping[id]
+
+    if !ok {
+        return nil, UnknownID
+    }
+
+    return dir.getDirectoryContents()
+}
+
+
+
+func (fm *fileMapping) addFile(id localUUID) ([]localUUID, error) {
+    return nil, nil
+}
+*/
+
 // The number of bytes in a UUID (For now)
-const UUIDSize uint8 = 2
+const UUIDSize uint8 = 16
 
 // Key into the file mapping.
 type localUUID struct {
     value [UUIDSize]byte
 }
 
+func (lu *localUUID) toProto() *head.UUID {
+    return &head.UUID{Value: lu.value[:]}
+}
+
+func toLocal(pru *head.UUID) localUUID {
+    var byts [UUIDSize]byte
+
+    copy(byts[:], pru.Value)    
+
+    return localUUID{value: byts}
+}
+
 type object interface {
     getName() string
+
+    isDirectory() bool
 
     // Directory actions.
     getDirectoryContents() ([]localUUID, error)
@@ -76,12 +147,18 @@ func (d *directoryObject) getName() string {
     return d.name
 }
 
+func (d *directoryObject) isDirectory() bool {
+    return true
+}
+
 func (d *directoryObject) getDirectoryContents() ([]localUUID, error) {
     return d.contents, nil
 }
 
+var NotAFile = errors.New("Cannot get file contents from a direcotry!")
+
 func (d *directoryObject) getFileContents() ([]byte, error) {
-    return nil, errors.New("Cannot get file contents from a direcotry!")
+    return nil, NotAFile 
 }
 
 type fileObject struct {
@@ -97,11 +174,17 @@ func (fo *fileObject) getName() string {
     return fo.name
 }
 
-func (fo *fileObject) getDirectoryContents() ([]localUUID, error) {
-    return nil, errors.New("Cannot get the contents of a file!"
+func (fo *fileObject) isDirectory() bool {
+    return false 
 }
 
-func (fo *fileObject getFileContents() ([]byte, error) {
+var NotADirectory = errors.New("Cannot get the contents of a file!")
+
+func (fo *fileObject) getDirectoryContents() ([]localUUID, error) {
+    return nil, NotADirectory
+}
+
+func (fo *fileObject) getFileContents() ([]byte, error) {
     // Actuall perform read!
 }
 
