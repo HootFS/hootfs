@@ -2,6 +2,7 @@ package hootfs
 
 import (
 	"context"
+	"errors"
 
 	head "github.com/hootfs/hootfs/protos"
 	"google.golang.org/grpc/codes"
@@ -54,6 +55,16 @@ type localUUID struct {
     value [UUIDSize]byte
 }
 
+type object interface {
+    getName() string
+
+    // Directory actions.
+    getDirectoryContents() ([]localUUID, error)
+
+    // File actions.
+    getFileContents() ([]byte, error)
+}
+
 
 // Object representing a directory.
 type directoryObject struct {
@@ -62,18 +73,16 @@ type directoryObject struct {
 }
 
 func (d *directoryObject) getName() string {
-    return d.name;
+    return d.name
 }
 
-func (d *directoryObject) isDirectory() bool {
-    return true;
+func (d *directoryObject) getDirectoryContents() ([]localUUID, error) {
+    return d.contents, nil
 }
 
-func (d *directoryObject) getContents() []localUUID {
-    return d.contents;
+func (d *directoryObject) getFileContents() ([]byte, error) {
+    return nil, errors.New("Cannot get file contents from a direcotry!")
 }
-
-
 
 type fileObject struct {
     name string
@@ -84,17 +93,15 @@ type fileObject struct {
     localPath string
 }
 
-// Code for dealing with id to path mappings for all objects.
-type object interface {
-    getName() string
-
-    // Directory actions.
-    isDirectory() bool
-    getContents() []localUUID
-
-    // File actions.
-    isFile() bool
-    read() []byte
+func (fo *fileObject) getName() string {
+    return fo.name
 }
 
+func (fo *fileObject) getDirectoryContents() ([]localUUID, error) {
+    return nil, errors.New("Cannot get the contents of a file!"
+}
+
+func (fo *fileObject getFileContents() ([]byte, error) {
+    // Actuall perform read!
+}
 
