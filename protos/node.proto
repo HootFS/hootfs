@@ -1,0 +1,134 @@
+
+syntax = "proto3";
+
+import "./head.proto"
+
+package hootfs
+
+option go_package = "github.com/hootfs/hootfs/protos";
+
+// Services for working between internal nodes.
+// Initially each node will hold a cluster service connecion
+// with all other nodes in the cluster.
+//
+// This will be used for retrieving/updating 
+// information stored remotely on other nodes.
+// 
+// Initially, all information will be cloned
+// on all machines.
+// This service will take this into account.
+// i.e. data retrieval methods will not be needed
+// initially. 
+
+// ------------ MakeDirectoryCS Messages -----------------
+
+message MakeDirectoryCSRequest {
+    // Node authentication key.
+    string node_key = 1;       
+
+    // The ID of the user for which this request 
+    // originated from.
+    string user_id = 2;        
+    
+    // ID of the parent directory.
+    UUID parent_dir_id = 3;
+
+    // ID and name of the new directory.
+    UUID new_dir_id = 4;
+    string new_dir_name = 5;
+
+message MakeDirectoryCSResponse {
+    // Empty for now.
+}
+
+// ------------ AddNewFileCS Messages -----------------
+
+message AddNewFileCSRequest {
+    string node_key = 1;
+    string user_id = 2;
+
+    // ID of directory to place folder in.
+    UUID parent_dir_id = 2;
+    UUID new_file_id = 3;
+    string new_file_name = 4;
+
+    // Contents of file being added...
+    // If not provided, an empty file
+    // will be created.
+    bytes contents = 5;
+}
+
+message AddNewFileCSResponse {
+    // Empty for now.
+}
+
+// ------------ UpdateFileContentsCS Messages -----------------
+
+message UpdateFileContentsCSRequest {
+    string node_key = 1;
+    string user_id = 2;
+
+    UUID file_id = 3;
+
+    // The given file's contents will be
+    // set to contents. 
+    bytes contents = 4;
+}
+
+message UpdateFileContentsCSResponse {
+    // empty for now.
+}
+
+// ------------ MoveObjectCS Messages -----------------
+
+message MoveObjectCSRequest {
+    string node_key = 1;
+    string user_id = 2;
+
+    // Object to move.
+    UUID curr_object_id = 3; 
+    
+    // The new object ID after the move.
+    UUID new_object_id = 4;
+
+    // Directory to move to.
+    UUID dir_id = 5;
+
+    // New name of object. 
+    string new_name = 6;
+}
+
+message MoveObjectCSResponse {
+    // empty for now.
+}
+
+// ------------ RemoveObjectCS Messages -----------------
+
+message RemoveObjectCSRequest {
+    string node_key = 1;
+    string user_id = 2;
+
+    // Object to delete.
+    UUID object_id = 3;
+}
+
+message RemoveObjectCSResponse {
+    // Potentially more to add later...
+}
+
+service ClusterService {
+    rpc MakeDirectoryCS(MakeDirectoryCSRequest)
+        returns (MakeDirectoryCSResponse);
+
+    rpc AddNewFileCS(AddNewFileCSRequest)
+        returns (AddNewFileCSResponse);
+    
+    rpc UpdateFileContentsCS(UpdateFileContentsCSRequest)
+        returns (UpdateFileContentsCSResponse);    
+
+    rpc MoveObjectCS(MoveObjectCSRequest)
+        returns (MoveObjectCSResponse);    
+
+    rpc RemoveObjectCS(RemoveObjectCSRequest)
+        returns (RemoveObjectCSResponse);    
+}
