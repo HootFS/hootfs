@@ -36,9 +36,10 @@ message MakeDirectoryCSRequest {
     // ID and name of the new directory.
     UUID new_dir_id = 4;
     string new_dir_name = 5;
+}
 
 message MakeDirectoryCSResponse {
-    // Empty for now.
+    UUID created_dir_id = 1;
 }
 
 // ------------ AddNewFileCS Messages -----------------
@@ -59,7 +60,7 @@ message AddNewFileCSRequest {
 }
 
 message AddNewFileCSResponse {
-    // Empty for now.
+    UUID created_file_id = 1;
 }
 
 // ------------ UpdateFileContentsCS Messages -----------------
@@ -76,7 +77,7 @@ message UpdateFileContentsCSRequest {
 }
 
 message UpdateFileContentsCSResponse {
-    // empty for now.
+    UUID updated_file_id = 1;
 }
 
 // ------------ MoveObjectCS Messages -----------------
@@ -99,7 +100,7 @@ message MoveObjectCSRequest {
 }
 
 message MoveObjectCSResponse {
-    // empty for now.
+    UUID moved_object_id = 1;
 }
 
 // ------------ RemoveObjectCS Messages -----------------
@@ -113,7 +114,7 @@ message RemoveObjectCSRequest {
 }
 
 message RemoveObjectCSResponse {
-    // Potentially more to add later...
+    UUID removed_object_id = 1; 
 }
 
 service ClusterService {
