@@ -8,12 +8,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/google/uuid"
 	head "github.com/hootfs/hootfs/protos"
 	"google.golang.org/grpc"
 )
 
 func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
-	if len(args) == 0 {
+	if len(args) == 0 { // blank command
 		return
 	}
 	switch args[0] {
@@ -22,20 +23,32 @@ func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 			fmt.Fprintln(os.Stderr, "usage: read [filename]")
 			return
 		}
-		req := head.GetFileContentsRequest{} // TODO do a proper initialization of this
+		fileid, _ := uuid.Parse(args[1])
+		req := head.GetFileContentsRequest{FileId: &head.UUID{Value: fileid[:]}}
 		rpcClient.GetFileContents(context.Background(), &req)
 	case "write":
 		if len(args) != 3 {
 			fmt.Fprintln(os.Stderr, "usage: write [dst] [src]")
 			return
 		}
+		dstuuid, _ := uuid.Parse(args[1])
 		contents, err := os.ReadFile(args[2])
 		if err != nil {
 			fmt.Fprint(os.Stderr, err)
 			return
 		}
-		req := head.AddNewFileRequest{Contents: contents, FileName: args[2]} // TODO add uuid
+		req := head.AddNewFileRequest{Contents: contents, FileName: args[2], DirId: &head.UUID{Value: dstuuid[:]}} // TODO add uuid
 		rpcClient.AddNewFile(context.Background(), &req)
+	case "move":
+		if len(args) != 3 {
+			fmt.Fprintln(os.Stderr, "usage: move [dir] [newname] [src]")
+			return
+		}
+		srcuuid, _ := uuid.Parse(args[3])
+		dstuuid, _ := uuid.Parse(args[1])
+		_ = dstuuid
+		req := head.MoveObjectRequest{ObjectId: &head.UUID{Value: srcuuid[:]}, DirId: &head.UUID{Value: dstuuid[:]}, NewName: args[2]}
+		rpcClient.MoveObject(context.Background(), &req)
 	default:
 		fmt.Fprintf(os.Stderr, "no such command %s\n", args[0])
 	}
