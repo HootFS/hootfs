@@ -49,6 +49,14 @@ func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 		_ = dstuuid
 		req := head.MoveObjectRequest{ObjectId: &head.UUID{Value: srcuuid[:]}, DirId: &head.UUID{Value: dstuuid[:]}, NewName: args[2]}
 		rpcClient.MoveObject(context.Background(), &req)
+	case "delete":
+		if len(args) != 2 {
+			fmt.Fprintln(os.Stderr, "usage: delete [object]")
+			return
+		}
+		objid, _ := uuid.Parse(args[1])
+		req := head.RemoveObjectRequest{ObjectId: &head.UUID{Value: objid[:]}}
+		rpcClient.RemoveObject(context.Background(), &req)
 	default:
 		fmt.Fprintf(os.Stderr, "no such command %s\n", args[0])
 	}
