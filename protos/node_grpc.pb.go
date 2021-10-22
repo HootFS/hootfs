@@ -23,9 +23,6 @@ type ClusterServiceClient interface {
 	UpdateFileContentsCS(ctx context.Context, in *UpdateFileContentsCSRequest, opts ...grpc.CallOption) (*UpdateFileContentsCSResponse, error)
 	MoveObjectCS(ctx context.Context, in *MoveObjectCSRequest, opts ...grpc.CallOption) (*MoveObjectCSResponse, error)
 	RemoveObjectCS(ctx context.Context, in *RemoveObjectCSRequest, opts ...grpc.CallOption) (*RemoveObjectCSResponse, error)
-	ClusterAdditionCS(ctx context.Context, in *ClusterAdditionCSRequest, opts ...grpc.CallOption) (*ClusterAdditionCSResponse, error)
-	ClusterRemovalCS(ctx context.Context, in *ClusterRemovalCSRequest, opts ...grpc.CallOption) (*ClusterRemovalCSResponse, error)
-	PingCS(ctx context.Context, in *PingCSRequest, opts ...grpc.CallOption) (*PingCSResponse, error)
 }
 
 type clusterServiceClient struct {
@@ -81,33 +78,6 @@ func (c *clusterServiceClient) RemoveObjectCS(ctx context.Context, in *RemoveObj
 	return out, nil
 }
 
-func (c *clusterServiceClient) ClusterAdditionCS(ctx context.Context, in *ClusterAdditionCSRequest, opts ...grpc.CallOption) (*ClusterAdditionCSResponse, error) {
-	out := new(ClusterAdditionCSResponse)
-	err := c.cc.Invoke(ctx, "/hootfs.node.ClusterService/ClusterAdditionCS", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *clusterServiceClient) ClusterRemovalCS(ctx context.Context, in *ClusterRemovalCSRequest, opts ...grpc.CallOption) (*ClusterRemovalCSResponse, error) {
-	out := new(ClusterRemovalCSResponse)
-	err := c.cc.Invoke(ctx, "/hootfs.node.ClusterService/ClusterRemovalCS", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *clusterServiceClient) PingCS(ctx context.Context, in *PingCSRequest, opts ...grpc.CallOption) (*PingCSResponse, error) {
-	out := new(PingCSResponse)
-	err := c.cc.Invoke(ctx, "/hootfs.node.ClusterService/PingCS", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ClusterServiceServer is the server API for ClusterService service.
 // All implementations must embed UnimplementedClusterServiceServer
 // for forward compatibility
@@ -117,9 +87,6 @@ type ClusterServiceServer interface {
 	UpdateFileContentsCS(context.Context, *UpdateFileContentsCSRequest) (*UpdateFileContentsCSResponse, error)
 	MoveObjectCS(context.Context, *MoveObjectCSRequest) (*MoveObjectCSResponse, error)
 	RemoveObjectCS(context.Context, *RemoveObjectCSRequest) (*RemoveObjectCSResponse, error)
-	ClusterAdditionCS(context.Context, *ClusterAdditionCSRequest) (*ClusterAdditionCSResponse, error)
-	ClusterRemovalCS(context.Context, *ClusterRemovalCSRequest) (*ClusterRemovalCSResponse, error)
-	PingCS(context.Context, *PingCSRequest) (*PingCSResponse, error)
 	mustEmbedUnimplementedClusterServiceServer()
 }
 
@@ -141,15 +108,6 @@ func (UnimplementedClusterServiceServer) MoveObjectCS(context.Context, *MoveObje
 }
 func (UnimplementedClusterServiceServer) RemoveObjectCS(context.Context, *RemoveObjectCSRequest) (*RemoveObjectCSResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveObjectCS not implemented")
-}
-func (UnimplementedClusterServiceServer) ClusterAdditionCS(context.Context, *ClusterAdditionCSRequest) (*ClusterAdditionCSResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ClusterAdditionCS not implemented")
-}
-func (UnimplementedClusterServiceServer) ClusterRemovalCS(context.Context, *ClusterRemovalCSRequest) (*ClusterRemovalCSResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ClusterRemovalCS not implemented")
-}
-func (UnimplementedClusterServiceServer) PingCS(context.Context, *PingCSRequest) (*PingCSResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PingCS not implemented")
 }
 func (UnimplementedClusterServiceServer) mustEmbedUnimplementedClusterServiceServer() {}
 
@@ -254,60 +212,6 @@ func _ClusterService_RemoveObjectCS_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ClusterService_ClusterAdditionCS_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ClusterAdditionCSRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ClusterServiceServer).ClusterAdditionCS(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hootfs.node.ClusterService/ClusterAdditionCS",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClusterServiceServer).ClusterAdditionCS(ctx, req.(*ClusterAdditionCSRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ClusterService_ClusterRemovalCS_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ClusterRemovalCSRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ClusterServiceServer).ClusterRemovalCS(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hootfs.node.ClusterService/ClusterRemovalCS",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClusterServiceServer).ClusterRemovalCS(ctx, req.(*ClusterRemovalCSRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ClusterService_PingCS_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PingCSRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ClusterServiceServer).PingCS(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hootfs.node.ClusterService/PingCS",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClusterServiceServer).PingCS(ctx, req.(*PingCSRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ClusterService_ServiceDesc is the grpc.ServiceDesc for ClusterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -334,18 +238,6 @@ var ClusterService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveObjectCS",
 			Handler:    _ClusterService_RemoveObjectCS_Handler,
-		},
-		{
-			MethodName: "ClusterAdditionCS",
-			Handler:    _ClusterService_ClusterAdditionCS_Handler,
-		},
-		{
-			MethodName: "ClusterRemovalCS",
-			Handler:    _ClusterService_ClusterRemovalCS_Handler,
-		},
-		{
-			MethodName: "PingCS",
-			Handler:    _ClusterService_PingCS_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
