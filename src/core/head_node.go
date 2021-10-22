@@ -1,4 +1,4 @@
-package hootfs
+package core
 
 import (
 	"context"
@@ -37,10 +37,12 @@ func (s *fileManagerServer) GetFileContents(
 	ctx context.Context, request *head.GetFileContentsRequest) (*head.GetFileContentsResponse, error) {
 	return &head.GetFileContentsResponse{}, nil
 }
+
 func (s *fileManagerServer) MoveObject(
 	ctx context.Context, request *head.MoveObjectRequest) (*head.MoveObjectResponse, error) {
 	return &head.MoveObjectResponse{}, nil
 }
+
 func (s *fileManagerServer) RemoveObject(
 	ctx context.Context, request *head.RemoveObjectRequest) (*head.RemoveObjectResponse, error) {
 	return &head.RemoveObjectResponse{}, nil

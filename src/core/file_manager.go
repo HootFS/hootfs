@@ -1,4 +1,4 @@
-package hootfs
+package core 
 
 import "errors"
 

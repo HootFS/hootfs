@@ -315,5 +315,5 @@ var HootFsService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "protos/head.proto",
+	Metadata: "head.proto",
 }

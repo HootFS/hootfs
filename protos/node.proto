@@ -1,9 +1,9 @@
 
 syntax = "proto3";
 
-import "protos/head.proto";
+import "head.proto";
 
-package hootfs;
+package hootfs.node;
 
 option go_package = "github.com/hootfs/hootfs/protos";
 
@@ -117,7 +117,49 @@ message RemoveObjectCSResponse {
   head.UUID removed_object_id = 1;
 }
 
+// ----------- Messages for Cluster Additions ---------------
+
+message ClusterAdditionCSRequest {
+  // Key of the discovery server node.
+  string discovery_key = 1; 
+
+  // The IP addresses to add to this nodes network.
+  repeated string ips = 2;
+}
+
+message ClusterAdditionCSResponse {
+  // The new list of ips the node is connected to.
+  repeated string ips = 1;
+}
+
+// ----------- Messages for Cluster Removals --------------
+
+message ClusterRemovalCSRequest {
+  string discovery_key = 1;
+
+  // The IP addresses to remove from this nodes network.
+  repeated string ips = 2;
+}
+
+message ClusterRemovalCSResponse {
+  // The new list of ips the node is connected to.
+  repeated string ips = 1;
+}
+
+// ----------- Messages for pinging this node ---------------
+
+message PingCSRequest {
+  string discovery_key = 1;
+}
+
+message PingCSResponse {
+
+}
+
 service ClusterService {
+
+  // Procedure calls from a cluster node to another.
+
   rpc MakeDirectoryCS(MakeDirectoryCSRequest) returns (MakeDirectoryCSResponse);
 
   rpc AddNewFileCS(AddNewFileCSRequest) returns (AddNewFileCSResponse);
@@ -128,4 +170,12 @@ service ClusterService {
   rpc MoveObjectCS(MoveObjectCSRequest) returns (MoveObjectCSResponse);
 
   rpc RemoveObjectCS(RemoveObjectCSRequest) returns (RemoveObjectCSResponse);
+
+  // Procedure calls from the discovery server to this cluster node.
+
+  rpc ClusterAdditionCS(ClusterAdditionCSRequest) returns (ClusterAdditionCSResponse);
+
+  rpc ClusterRemovalCS(ClusterRemovalCSRequest) returns (ClusterRemovalCSResponse);
+
+  rpc PingCS(PingCSRequest) returns (PingCSResponse);
 }
