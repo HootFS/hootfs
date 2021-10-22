@@ -19,7 +19,6 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DiscoverServiceClient interface {
 	JoinCluster(ctx context.Context, in *JoinClusterRequest, opts ...grpc.CallOption) (*JoinClusterResponse, error)
-	LeaveCluster(ctx context.Context, in *LeaveClusterRequest, opts ...grpc.CallOption) (*LeaveClusterResponse, error)
 }
 
 type discoverServiceClient struct {
@@ -39,21 +38,11 @@ func (c *discoverServiceClient) JoinCluster(ctx context.Context, in *JoinCluster
 	return out, nil
 }
 
-func (c *discoverServiceClient) LeaveCluster(ctx context.Context, in *LeaveClusterRequest, opts ...grpc.CallOption) (*LeaveClusterResponse, error) {
-	out := new(LeaveClusterResponse)
-	err := c.cc.Invoke(ctx, "/hootfs.discovery.DiscoverService/LeaveCluster", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // DiscoverServiceServer is the server API for DiscoverService service.
 // All implementations must embed UnimplementedDiscoverServiceServer
 // for forward compatibility
 type DiscoverServiceServer interface {
 	JoinCluster(context.Context, *JoinClusterRequest) (*JoinClusterResponse, error)
-	LeaveCluster(context.Context, *LeaveClusterRequest) (*LeaveClusterResponse, error)
 	mustEmbedUnimplementedDiscoverServiceServer()
 }
 
@@ -63,9 +52,6 @@ type UnimplementedDiscoverServiceServer struct {
 
 func (UnimplementedDiscoverServiceServer) JoinCluster(context.Context, *JoinClusterRequest) (*JoinClusterResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method JoinCluster not implemented")
-}
-func (UnimplementedDiscoverServiceServer) LeaveCluster(context.Context, *LeaveClusterRequest) (*LeaveClusterResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method LeaveCluster not implemented")
 }
 func (UnimplementedDiscoverServiceServer) mustEmbedUnimplementedDiscoverServiceServer() {}
 
@@ -98,24 +84,6 @@ func _DiscoverService_JoinCluster_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DiscoverService_LeaveCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(LeaveClusterRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DiscoverServiceServer).LeaveCluster(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hootfs.discovery.DiscoverService/LeaveCluster",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DiscoverServiceServer).LeaveCluster(ctx, req.(*LeaveClusterRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // DiscoverService_ServiceDesc is the grpc.ServiceDesc for DiscoverService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -126,10 +94,6 @@ var DiscoverService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "JoinCluster",
 			Handler:    _DiscoverService_JoinCluster_Handler,
-		},
-		{
-			MethodName: "LeaveCluster",
-			Handler:    _DiscoverService_LeaveCluster_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

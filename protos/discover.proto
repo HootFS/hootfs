@@ -5,25 +5,14 @@ package hootfs.discovery;
 option go_package = "github.com/hootfs/hootfs/protos";
 
 message JoinClusterRequest {
-    string ip = 1;
+    string cluster_key = 1;
 }
 
 message JoinClusterResponse {
     repeated string cluster_ips = 1;
 }
 
-message LeaveClusterRequest {
-    string ip = 1;
-}
-
-message LeaveClusterResponse {
-    repeated string cluster_ips = 1;
-}
-
 service DiscoverService {
     rpc JoinCluster(JoinClusterRequest)
         returns (JoinClusterResponse);
-
-    rpc LeaveCluster(LeaveClusterRequest)
-        returns (LeaveClusterResponse);
 }
