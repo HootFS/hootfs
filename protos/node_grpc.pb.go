@@ -35,7 +35,7 @@ func NewClusterServiceClient(cc grpc.ClientConnInterface) ClusterServiceClient {
 
 func (c *clusterServiceClient) MakeDirectoryCS(ctx context.Context, in *MakeDirectoryCSRequest, opts ...grpc.CallOption) (*MakeDirectoryCSResponse, error) {
 	out := new(MakeDirectoryCSResponse)
-	err := c.cc.Invoke(ctx, "/hootfs.ClusterService/MakeDirectoryCS", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/hootfs.node.ClusterService/MakeDirectoryCS", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (c *clusterServiceClient) MakeDirectoryCS(ctx context.Context, in *MakeDire
 
 func (c *clusterServiceClient) AddNewFileCS(ctx context.Context, in *AddNewFileCSRequest, opts ...grpc.CallOption) (*AddNewFileCSResponse, error) {
 	out := new(AddNewFileCSResponse)
-	err := c.cc.Invoke(ctx, "/hootfs.ClusterService/AddNewFileCS", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/hootfs.node.ClusterService/AddNewFileCS", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (c *clusterServiceClient) AddNewFileCS(ctx context.Context, in *AddNewFileC
 
 func (c *clusterServiceClient) UpdateFileContentsCS(ctx context.Context, in *UpdateFileContentsCSRequest, opts ...grpc.CallOption) (*UpdateFileContentsCSResponse, error) {
 	out := new(UpdateFileContentsCSResponse)
-	err := c.cc.Invoke(ctx, "/hootfs.ClusterService/UpdateFileContentsCS", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/hootfs.node.ClusterService/UpdateFileContentsCS", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (c *clusterServiceClient) UpdateFileContentsCS(ctx context.Context, in *Upd
 
 func (c *clusterServiceClient) MoveObjectCS(ctx context.Context, in *MoveObjectCSRequest, opts ...grpc.CallOption) (*MoveObjectCSResponse, error) {
 	out := new(MoveObjectCSResponse)
-	err := c.cc.Invoke(ctx, "/hootfs.ClusterService/MoveObjectCS", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/hootfs.node.ClusterService/MoveObjectCS", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (c *clusterServiceClient) MoveObjectCS(ctx context.Context, in *MoveObjectC
 
 func (c *clusterServiceClient) RemoveObjectCS(ctx context.Context, in *RemoveObjectCSRequest, opts ...grpc.CallOption) (*RemoveObjectCSResponse, error) {
 	out := new(RemoveObjectCSResponse)
-	err := c.cc.Invoke(ctx, "/hootfs.ClusterService/RemoveObjectCS", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/hootfs.node.ClusterService/RemoveObjectCS", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func _ClusterService_MakeDirectoryCS_Handler(srv interface{}, ctx context.Contex
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/hootfs.ClusterService/MakeDirectoryCS",
+		FullMethod: "/hootfs.node.ClusterService/MakeDirectoryCS",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ClusterServiceServer).MakeDirectoryCS(ctx, req.(*MakeDirectoryCSRequest))
@@ -150,7 +150,7 @@ func _ClusterService_AddNewFileCS_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/hootfs.ClusterService/AddNewFileCS",
+		FullMethod: "/hootfs.node.ClusterService/AddNewFileCS",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ClusterServiceServer).AddNewFileCS(ctx, req.(*AddNewFileCSRequest))
@@ -168,7 +168,7 @@ func _ClusterService_UpdateFileContentsCS_Handler(srv interface{}, ctx context.C
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/hootfs.ClusterService/UpdateFileContentsCS",
+		FullMethod: "/hootfs.node.ClusterService/UpdateFileContentsCS",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ClusterServiceServer).UpdateFileContentsCS(ctx, req.(*UpdateFileContentsCSRequest))
@@ -186,7 +186,7 @@ func _ClusterService_MoveObjectCS_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/hootfs.ClusterService/MoveObjectCS",
+		FullMethod: "/hootfs.node.ClusterService/MoveObjectCS",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ClusterServiceServer).MoveObjectCS(ctx, req.(*MoveObjectCSRequest))
@@ -204,7 +204,7 @@ func _ClusterService_RemoveObjectCS_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/hootfs.ClusterService/RemoveObjectCS",
+		FullMethod: "/hootfs.node.ClusterService/RemoveObjectCS",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ClusterServiceServer).RemoveObjectCS(ctx, req.(*RemoveObjectCSRequest))
@@ -216,7 +216,7 @@ func _ClusterService_RemoveObjectCS_Handler(srv interface{}, ctx context.Context
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ClusterService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "hootfs.ClusterService",
+	ServiceName: "hootfs.node.ClusterService",
 	HandlerType: (*ClusterServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -241,5 +241,5 @@ var ClusterService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "protos/node.proto",
+	Metadata: "node.proto",
 }

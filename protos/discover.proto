@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package hootfs.discovery;
+
+option go_package = "github.com/hootfs/hootfs/protos";
+
+message JoinClusterRequest {
+    string cluster_key = 1;
+}
+
+message JoinClusterResponse {
+    repeated string cluster_ips = 1;
+}
+
+message GetActiveRequest {
+    string node_key = 1;
+}
+
+message GetActiveResponse {
+    repeated string ips = 1;
+}
+
+message PingRequest {
+    string node_key = 1;
+}
+
+message PingResponse {
+    
+}
+
+service DiscoverService {
+    rpc JoinCluster(JoinClusterRequest)
+        returns (JoinClusterResponse);
+
+    rpc GetActive(GetActiveRequest) returns (GetActiveResponse);
+
+    rpc Ping(PingRequest) returns (PingResponse);
+}
+
