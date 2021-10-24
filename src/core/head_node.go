@@ -2,10 +2,7 @@ package core
 
 import (
 	"context"
-	"log"
-	"net"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -172,18 +169,4 @@ func (fo *fileObject) getName() string {
 func (fo *fileObject) getFileContents() ([]byte, error) {
 	return nil, nil
 	// Actually perform read!
-}
-
-func main() {
-	lis, err := net.Listen("tcp", port)
-	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
-	}
-	s := grpc.NewServer()
-
-	head.RegisterHootFsServiceServer(s, &fileManagerServer{})
-	log.Printf("Server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
-	}
 }
