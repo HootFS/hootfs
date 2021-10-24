@@ -17,21 +17,6 @@ func ErrMismatchedNamespace(expected string, found string) error {
 	return fmt.Errorf("Namespace %s did not match expected namespace %s", found, expected)
 }
 
-type FileSystemManager interface {
-	// File Operations
-	CreateFile(filename string) error
-	WriteFile(filename string, content []byte) error
-	ReadFile(filename string) ([]byte, error)
-	DeleteFile(filename string) error
-	MoveFile(old_filename string, new_filename string) error
-
-	// Directory Operations
-	CreateDirectory(directory_name string) error
-	DeleteDriectory(directory_name string) error
-	GetDirectoryContents(direcotry_name string) ([]FileObject, error)
-	MoveDirectory(old_direcotry_string string, new_directory_string string)
-}
-
 type FileType int
 
 const (
