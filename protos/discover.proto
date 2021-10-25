@@ -9,7 +9,9 @@ message JoinClusterRequest {
 }
 
 message JoinClusterResponse {
-    repeated string cluster_ips = 1;
+    uint64 new_id = 1;
+    repeated uint64 cluster_ids = 2;
+    repeated string cluster_ips = 3;
 }
 
 message GetActiveRequest {
@@ -17,7 +19,8 @@ message GetActiveRequest {
 }
 
 message GetActiveResponse {
-    repeated string ips = 1;
+    repeated uint64 cluster_ids = 2;
+    repeated string cluster_ips = 3;
 }
 
 message PingRequest {
