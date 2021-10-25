@@ -57,6 +57,21 @@ func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 		objid, _ := uuid.Parse(args[1])
 		req := head.RemoveObjectRequest{ObjectId: &head.UUID{Value: objid[:]}}
 		rpcClient.RemoveObject(context.Background(), &req)
+	case "mkdir":
+		if len(args) != 2 {
+			fmt.Fprintln(os.Stderr, "usage: mkdir [rootdir] [dirname]")
+			return
+		}
+		rootdirid, _ := uuid.Parse(args[1])
+		req := head.MakeDirectoryRequest{DirId: &head.UUID{Value: rootdirid[:]}, DirName: args[2]}
+		rpcClient.MakeDirectory(context.Background(), &req)
+	case "ls":
+		if len(args) != 2 {
+			fmt.Fprintf(os.Stderr, "usage: ls [dir]")
+		}
+		dirid, _ := uuid.Parse(args[1])
+		req := head.GetDirectoryContentsRequest{DirId: &head.UUID{Value: dirid[:]}}
+		rpcClient.GetDirectoryContents(context.Background(), &req)
 	default:
 		fmt.Fprintf(os.Stderr, "no such command %s\n", args[0])
 	}
