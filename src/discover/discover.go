@@ -2,14 +2,23 @@ package discover
 
 import (
 	"context"
+	"log"
+	"net"
 	"sync"
+	"time"
 
 	protos "github.com/hootfs/hootfs/protos"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
-) // For now the max cluster size.
-const clusterMaxSize = 1000
+)
+
+const (
+    port = ":50053"
+    clusterMaxSize = 1000
+    pingDurr = 5
+) 
 
 type NodeCell struct {
     id   uint64 // Node ID.
@@ -29,14 +38,15 @@ type DiscoverServer struct {
     // Next ID to attempt to use for a cluster node.
     nextId uint64
 
-    // These slices are updated whenever the above maps 
-    // are updated.
-    // Specifically, they are what are returned to clients 
-    // when an active list is requested.
-    idSlice []uint64 // These can start as NIL.
-    ipSlice []string
+    // This holds equal data to the two maps above.
+    // However, it is in a form which easily transmittable 
+    // via grpc.
+    protoActiveMap []*protos.NodeInfo
 
     rwLock  sync.RWMutex    
+
+    // Embedded unimplemented service.
+    protos.UnimplementedDiscoverServiceServer
 }
 
 func NewDiscoverServer() (*DiscoverServer) {
@@ -45,6 +55,31 @@ func NewDiscoverServer() (*DiscoverServer) {
         idSet: make(map[uint64]bool),
         // Other values should be zeroed.
     }
+}
+
+func (d *DiscoverServer) StartServer() {
+    // Start up the discover server!
+    lis, err := net.Listen("tcp", port)
+    if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+
+    protos.RegisterDiscoverServiceServer(s, d)
+
+    // Start ping checks.
+    go func() {
+        for {
+            time.Sleep(pingDurr * time.Second) 
+            d.DropIdleAndReset()
+        }
+    }()
+
+    log.Printf("Server lsitening at %v", lis.Addr())
+
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
 }
 
 func (d *DiscoverServer) GenSlices() {
@@ -57,13 +92,14 @@ func (d *DiscoverServer) GenSlices() {
     // NOTE : this is not thread safe!!!
     // When using this function, make sure a lock has
     // been aquired.
-    d.idSlice = make([]uint64, len(d.nodeMap))
-    d.ipSlice = make([]string, len(d.nodeMap))
+    d.protoActiveMap = make([]*protos.NodeInfo, len(d.nodeMap))
 
     i := 0
     for ip, nc := range d.nodeMap {
-        d.idSlice[i] = nc.id
-        d.ipSlice[i] = ip
+        d.protoActiveMap[i] = &protos.NodeInfo{
+            NodeId: nc.id,
+            NodeIp: ip,
+        }
         i++
     }
 }
@@ -76,13 +112,17 @@ func (d *DiscoverServer) DropIdleAndReset() {
 
     idleFound := false
 
+    log.Println("Filtering Idle nodes.")
+
     for ip, nc := range d.nodeMap {
         // If a ping hasn't been received.
         if !nc.ping {
+            log.Printf("Node %d (%s) found idle.", nc.id, ip)
             // Delete the node from the cluster maps.
             delete(d.idSet, nc.id)
             delete(d.nodeMap, ip) 
             idleFound = true
+
         } else {
             nc.ping = false
         }
@@ -119,7 +159,7 @@ func (d *DiscoverServer) JoinCluster(ctx context.Context, jcr *protos.JoinCluste
     _, found := d.idSet[d.nextId]
     for found {
         d.nextId++
-        found = d.idSet[d.nextId]
+        _, found = d.idSet[d.nextId]
     }
 
     nodeId := d.nextId
@@ -133,8 +173,7 @@ func (d *DiscoverServer) JoinCluster(ctx context.Context, jcr *protos.JoinCluste
 
     return &protos.JoinClusterResponse{
         NewId: nodeId,  
-        ClusterIds: d.idSlice,
-        ClusterIps: d.ipSlice,
+        ClusterMap: d.protoActiveMap,
     }, nil
 }
 
@@ -147,8 +186,7 @@ func (d *DiscoverServer) GetActive(ctx context.Context, gar *protos.GetActiveReq
     defer d.rwLock.RUnlock()
 
     return &protos.GetActiveResponse{
-        ClusterIds: d.idSlice,
-        ClusterIps: d.ipSlice,
+        ClusterMap: d.protoActiveMap,
     }, nil 
 }
 
