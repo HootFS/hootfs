@@ -4,12 +4,18 @@ package hootfs.discovery;
 
 option go_package = "github.com/hootfs/hootfs/protos";
 
+message NodeInfo {
+    uint64 node_id = 1;
+    string node_ip = 2;  
+}
+
 message JoinClusterRequest {
     string cluster_key = 1;
 }
 
 message JoinClusterResponse {
-    repeated string cluster_ips = 1;
+    uint64 new_id = 1;
+    repeated NodeInfo cluster_map = 2;
 }
 
 message GetActiveRequest {
@@ -17,7 +23,7 @@ message GetActiveRequest {
 }
 
 message GetActiveResponse {
-    repeated string ips = 1;
+    repeated NodeInfo cluster_map = 1;
 }
 
 message PingRequest {
