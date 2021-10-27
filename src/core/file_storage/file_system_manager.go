@@ -166,7 +166,7 @@ func (m *FileManager) createDirectory(directory_name string, fileInfo *FileInfo)
 	return nil
 }
 
-func (m *FileManager) DeleteDirectory(fileInfo *FileInfo) error {
+func (m *FileManager) deleteDirectory(fileInfo *FileInfo) error {
 	fileObj, exists := m.vfm.files[fileInfo.objectId]
 	if !exists {
 		return ErrFileNotFound
