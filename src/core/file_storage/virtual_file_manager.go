@@ -25,6 +25,9 @@ type VirtualFile struct {
 }
 
 type VirtualFileManager struct {
+	// The virtual file manager has little information on
+	// the namespace.
+
 	directories map[uuid.UUID]VirtualDirectory
 	files       map[uuid.UUID]VirtualFile
 
