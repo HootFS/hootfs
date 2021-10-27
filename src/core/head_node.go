@@ -14,6 +14,7 @@ import (
 	head "github.com/hootfs/hootfs/protos"
     discover "github.com/hootfs/hootfs/src/discover"
     cluster "github.com/hootfs/hootfs/src/core/cluster"
+    hootfs "github.com/hootfs/hootfs/src/core/file_storage"
 )
 
 const (
@@ -28,6 +29,9 @@ const (
 type fileManagerServer struct {
     csc cluster.ClusterServiceClient
     dc discover.DiscoverClient
+    
+    vfmp hootfs.VirtualFileMapper
+    vfmg hootfs.VirtualFileManager 
 
 	head.UnimplementedHootFsServiceServer
 }
@@ -97,18 +101,17 @@ func (fms *fileManagerServer) StartServer() error {
 
 func (s *fileManagerServer) GetDirectoryContents(
 	ctx context.Context, request *head.GetDirectoryContentsRequest) (*head.GetDirectoryContentsResponse, error) {
-
-
+	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 
 func (s *fileManagerServer) MakeDirectory(
 	ctx context.Context, request *head.MakeDirectoryRequest) (*head.MakeDirectoryResponse, error) {
-        
+	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 
 func (s *fileManagerServer) AddNewFile(
 	ctx context.Context, request *head.AddNewFileRequest) (*head.AddNewFileResponse, error) {
-
+	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 
 func (s *fileManagerServer) UpdateFileContents(
