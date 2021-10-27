@@ -30,8 +30,8 @@ type fileManagerServer struct {
     csc cluster.ClusterServiceClient
     dc discover.DiscoverClient
     
-    vfmp hootfs.VirtualFileMapper
-    vfmg hootfs.VirtualFileManager 
+    vfmp *hootfs.VirtualFileMapper
+    vfmg *hootfs.VirtualFileManager 
 
 	head.UnimplementedHootFsServiceServer
 }

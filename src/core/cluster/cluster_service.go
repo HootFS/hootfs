@@ -7,8 +7,8 @@ import (
 	"net"
 
 	hootpb "github.com/hootfs/hootfs/protos"
-
 	"google.golang.org/grpc"
+    hootfs "github.com/hootfs/hootfs/src/core/file_storage"
 )
 
 const (
@@ -19,6 +19,9 @@ var ErrUnimplemented = errors.New("Unimplemented")
 var ErrMessageFailed = errors.New("Message was not sent.")
 
 type ClusterServer struct {
+    vfmp *hootfs.VirtualFileMapper
+    vfmg *hootfs.VirtualFileManager 
+
 	hootpb.UnimplementedClusterServiceServer
 }
 
