@@ -2,6 +2,7 @@ package discover
 
 import (
 	"context"
+	"log"
 
 	"github.com/hootfs/hootfs/protos"
 	"google.golang.org/grpc"
@@ -54,6 +55,7 @@ func (dc *DiscoverClient) JoinCluster() (uint64, map[uint64]string, error) {
 func (dc *DiscoverClient) GetActive() (map[uint64]string, error) {
 	var opts []grpc.DialOption
 
+	opts = append(opts, grpc.WithInsecure())
 	conn, err := grpc.Dial(dc.discoverIp+discoverPort, opts...)
 	if err != nil {
 		return nil, err
@@ -74,6 +76,7 @@ func (dc *DiscoverClient) GetActive() (map[uint64]string, error) {
 func (dc *DiscoverClient) Ping() error {
 	var opts []grpc.DialOption
 
+	opts = append(opts, grpc.WithInsecure())
 	conn, err := grpc.Dial(dc.discoverIp+discoverPort, opts...)
 	if err != nil {
 		return err
@@ -82,7 +85,12 @@ func (dc *DiscoverClient) Ping() error {
 
 	request := protos.PingRequest{NodeKey: ""}
 	client := protos.NewDiscoverServiceClient(conn)
-	_, err = client.Ping(context.Background(), &request)
+	resp, err := client.Ping(context.Background(), &request)
+	if resp == nil {
+		log.Printf("Discovery server did not send ping repsonse")
+	} else {
+		// log.Printf("Successfully received pong")
+	}
 
 	return err
 }

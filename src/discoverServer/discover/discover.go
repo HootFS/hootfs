@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -55,6 +56,10 @@ func NewDiscoverServer() *DiscoverServer {
 		idSet:   make(map[uint64]bool),
 		// Other values should be zeroed.
 	}
+}
+
+func getIp(addr string) string {
+	return addr[:strings.IndexByte(addr, ':')]
 }
 
 func (d *DiscoverServer) StartServer() {
@@ -138,7 +143,7 @@ func (d *DiscoverServer) DropIdleAndReset() {
 func (d *DiscoverServer) JoinCluster(ctx context.Context, jcr *protos.JoinClusterRequest) (*protos.JoinClusterResponse, error) {
 	// Retrieve Peer IP address.
 	p, _ := peer.FromContext(ctx)
-	ip := p.Addr.String()
+	ip := getIp(p.Addr.String())
 
 	// Critical section for the rest of the function.
 	d.rwLock.Lock()
@@ -196,7 +201,7 @@ func (d *DiscoverServer) Ping(ctx context.Context, pr *protos.PingRequest) (*pro
 
 	// Retrieve Peer IP address.
 	p, _ := peer.FromContext(ctx)
-	ip := p.Addr.String()
+	ip := getIp(p.Addr.String())
 
 	d.rwLock.Lock()
 	defer d.rwLock.Unlock()
