@@ -20,15 +20,15 @@ var ErrMessageFailed = errors.New("Message was not sent.")
 
 type ClusterServer struct {
     // Is this atomic though????
-    vfmp *hootfs.VirtualFileMapper
+    fmg *hootfs.FileManager
     vfmg *hootfs.VirtualFileManager 
 
 	hootpb.UnimplementedClusterServiceServer
 }
 
-func NewClusterServer(vfmp *hootfs.VirtualFileMapper, vfmg *hootfs.VirtualFileManager) *ClusterServer {
+func NewClusterServer(fmg *hootfs.FileManager, vfmg *hootfs.VirtualFileManager) *ClusterServer {
     return &ClusterServer{
-        vfmp: vfmp,
+        fmg: fmg,
         vfmg: vfmg,
     }
 }

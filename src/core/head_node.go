@@ -26,26 +26,26 @@ const (
 // File manager Server must deal with 
 // taking requests and pinging discovery server.
 
-type fileManagerServer struct {
+type HootFsServer struct {
     csc cluster.ClusterServiceClient
     dc discover.DiscoverClient
     
-    vfmp *hootfs.VirtualFileMapper
+    fmg *hootfs.FileManager
     vfmg *hootfs.VirtualFileManager 
 
 	head.UnimplementedHootFsServiceServer
 }
 
-func NewFileManagerServer(dip string, vfmp *hootfs.VirtualFileMapper, 
-    vfmg *hootfs.VirtualFileManager) *fileManagerServer {
-    return &fileManagerServer{
+func NewFileManagerServer(dip string, fmg *hootfs.FileManager, 
+    vfmg *hootfs.VirtualFileManager) *HootFsServer {
+    return &HootFsServer{
         dc: *discover.NewDiscoverClient(dip),
-        vfmp: vfmp,
+        fmg: fmg,
         vfmg: vfmg,
     }
 }
 
-func (fms *fileManagerServer) StartServer() error {
+func (fms *HootFsServer) StartServer() error {
     // First start server.
     lis, err := net.Listen("tcp", headPort)
     if err != nil {
@@ -102,37 +102,37 @@ func (fms *fileManagerServer) StartServer() error {
     return nil
 }
 
-func (s *fileManagerServer) GetDirectoryContents(
+func (s *HootFsServer) GetDirectoryContents(
 	ctx context.Context, request *head.GetDirectoryContentsRequest) (*head.GetDirectoryContentsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 
-func (s *fileManagerServer) MakeDirectory(
+func (s *HootFsServer) MakeDirectory(
 	ctx context.Context, request *head.MakeDirectoryRequest) (*head.MakeDirectoryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 
-func (s *fileManagerServer) AddNewFile(
+func (s *HootFsServer) AddNewFile(
 	ctx context.Context, request *head.AddNewFileRequest) (*head.AddNewFileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 
-func (s *fileManagerServer) UpdateFileContents(
+func (s *HootFsServer) UpdateFileContents(
 	ctx context.Context, request *head.UpdateFileContentsRequest) (*head.UpdateFileContentsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 
-func (s *fileManagerServer) GetFileContents(
+func (s *HootFsServer) GetFileContents(
 	ctx context.Context, request *head.GetFileContentsRequest) (*head.GetFileContentsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 
-func (s *fileManagerServer) MoveObject(
+func (s *HootFsServer) MoveObject(
 	ctx context.Context, request *head.MoveObjectRequest) (*head.MoveObjectResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 
-func (s *fileManagerServer) RemoveObject(
+func (s *HootFsServer) RemoveObject(
 	ctx context.Context, request *head.RemoveObjectRequest) (*head.RemoveObjectResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }

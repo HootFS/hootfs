@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+    "sync"
 
 	"github.com/google/uuid"
 )
@@ -70,6 +71,7 @@ type FileObject struct {
 
 type VirtualFileMapper struct {
 	files map[uuid.UUID]FileObject
+    rwLock sync.RWMutex
 }
 
 type FileManager struct {
@@ -100,11 +102,16 @@ func CreateNewSystemFile(namespace string, name string) *FileObject {
 // Lazy file creation
 // File will only be written to system once contents are available.
 func (m *FileManager) CreateFile(filename string, fileInfo *FileInfo) {
+    m.vfm.rwLock.Lock()
 	m.vfm.files[fileInfo.objectId] = *CreateNewSystemFile(fileInfo.namespaceId, filename)
+    m.vfm.rwLock.Unlock()
 }
 
 func (m *FileManager) WriteFile(fileInfo *FileInfo, contents []byte) error {
+    m.vfm.rwLock.RLock()
 	fileObj, exists := m.vfm.files[fileInfo.objectId]
+    m.vfm.rwLock.RUnlock()
+
 	if !exists {
 		return ErrFileNotFound
 	}
@@ -121,7 +128,9 @@ func (m *FileManager) WriteFile(fileInfo *FileInfo, contents []byte) error {
 }
 
 func (m *FileManager) ReadFile(fileInfo *FileInfo) ([]byte, error) {
+    m.vfm.rwLock.RLock()
 	fileObj, exists := m.vfm.files[fileInfo.objectId]
+    m.vfm.rwLock.RUnlock()
 	if !exists {
 		return nil, ErrFileNotFound
 	}
@@ -144,7 +153,10 @@ func (m *FileManager) ReadFile(fileInfo *FileInfo) ([]byte, error) {
 
 //
 func (m *FileManager) DeleteFile(fileInfo *FileInfo) error {
+    m.vfm.rwLock.RLock()
 	fileObj, exists := m.vfm.files[fileInfo.objectId]
+    m.vfm.rwLock.RUnlock()
+
 	if !exists {
 		return ErrFileNotFound
 	}
@@ -162,11 +174,17 @@ func (m *FileManager) createDirectory(directory_name string, fileInfo *FileInfo)
 	if err != nil {
 		return fmt.Errorf("Error creating directory: %v", err)
 	}
+
+    m.vfm.rwLock.Lock()
 	m.vfm.files[fileInfo.objectId] = *CreateNewSystemDirectory(fileInfo.namespaceId, directory_name)
+    m.vfm.rwLock.Unlock()
 	return nil
 }
 
 func (m *FileManager) deleteDirectory(fileInfo *FileInfo) error {
+    m.vfm.rwLock.Lock()
+    defer m.vfm.rwLock.Unlock()
+
 	fileObj, exists := m.vfm.files[fileInfo.objectId]
 	if !exists {
 		return ErrFileNotFound
