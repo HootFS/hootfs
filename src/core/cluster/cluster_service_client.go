@@ -15,11 +15,11 @@ import (
 var ErrIncorrectFileCreated = errors.New("The wrong file ID was returned")
 
 type ClusterServiceClient struct {
-	nodes  map[int]string
+	nodes  map[uint64]string
 	nodeId int
 }
 
-func (c *ClusterServiceClient) SendAddFile(destId int, userId string, parentDirId uuid.UUID, newFileId uuid.UUID, filename string, contents []byte) error {
+func (c *ClusterServiceClient) SendAddFile(destId uint64, userId string, parentDirId uuid.UUID, newFileId uuid.UUID, filename string, contents []byte) error {
 	var opts []grpc.DialOption
 
 	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
@@ -50,7 +50,7 @@ func (c *ClusterServiceClient) SendAddFile(destId int, userId string, parentDirI
 	return ErrUnimplemented
 }
 
-func (c *ClusterServiceClient) SendMakeDirectory(destId int, userId string, parentDirId uuid.UUID, newDirId uuid.UUID, dirname string) error {
+func (c *ClusterServiceClient) SendMakeDirectory(destId uint64, userId string, parentDirId uuid.UUID, newDirId uuid.UUID, dirname string) error {
 	var opts []grpc.DialOption
 
 	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
@@ -80,7 +80,7 @@ func (c *ClusterServiceClient) SendMakeDirectory(destId int, userId string, pare
 	return ErrUnimplemented
 }
 
-func (c *ClusterServiceClient) SendUpdateFileContentsRequest(destId int, userId string, fileId uuid.UUID, contents []byte) error {
+func (c *ClusterServiceClient) SendUpdateFileContentsRequest(destId uint64, userId string, fileId uuid.UUID, contents []byte) error {
 	var opts []grpc.DialOption
 
 	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
@@ -109,7 +109,7 @@ func (c *ClusterServiceClient) SendUpdateFileContentsRequest(destId int, userId 
 	return ErrUnimplemented
 }
 
-func (c *ClusterServiceClient) SendMoveObject(destId int, userId string, currentObjId uuid.UUID, newParentId uuid.UUID, newName string) error {
+func (c *ClusterServiceClient) SendMoveObject(destId uint64, userId string, currentObjId uuid.UUID, newParentId uuid.UUID, newName string) error {
 	var opts []grpc.DialOption
 
 	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
@@ -139,7 +139,7 @@ func (c *ClusterServiceClient) SendMoveObject(destId int, userId string, current
 	return ErrUnimplemented
 }
 
-func (c *ClusterServiceClient) SendRemoveObject(destId int, userId string, objId uuid.UUID) error {
+func (c *ClusterServiceClient) SendRemoveObject(destId uint64, userId string, objId uuid.UUID) error {
 	var opts []grpc.DialOption
 
 	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)

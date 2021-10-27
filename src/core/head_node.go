@@ -1,20 +1,13 @@
-package main
+package core
 
 import (
 	"context"
-	"log"
-	"net"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/google/uuid"
 	head "github.com/hootfs/hootfs/protos"
-)
-
-const (
-	port = ":50051"
 )
 
 type fileManagerServer struct {
@@ -112,10 +105,12 @@ func (s *fileManagerServer) GetFileContents(
 	ctx context.Context, request *head.GetFileContentsRequest) (*head.GetFileContentsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
+
 func (s *fileManagerServer) MoveObject(
 	ctx context.Context, request *head.MoveObjectRequest) (*head.MoveObjectResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
+
 func (s *fileManagerServer) RemoveObject(
 	ctx context.Context, request *head.RemoveObjectRequest) (*head.RemoveObjectResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
@@ -174,18 +169,4 @@ func (fo *fileObject) getName() string {
 func (fo *fileObject) getFileContents() ([]byte, error) {
 	return nil, nil
 	// Actually perform read!
-}
-
-func main() {
-	lis, err := net.Listen("tcp", port)
-	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
-	}
-	s := grpc.NewServer()
-
-	head.RegisterHootFsServiceServer(s, &fileManagerServer{})
-	log.Printf("Server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
-	}
 }
