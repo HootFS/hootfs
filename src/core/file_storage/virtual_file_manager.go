@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/hootfs/hootfs/protos"
 )
 
 func ErrDirNotFound(directory uuid.UUID) error {
@@ -32,6 +33,40 @@ type VirtualFileManager struct {
 	files       map[uuid.UUID]VirtualFile
 
 	rwLock sync.RWMutex
+}
+
+func (m *VirtualFileManager) GetDirectoryContentsAsProto(dirId uuid.UUID) ([]*protos.ObjectInfo, error) {
+	m.rwLock.RLock()
+	defer m.rwLock.RUnlock()
+
+	vd, exists := m.directories[dirId]
+	if !exists {
+		return nil, fmt.Errorf("Directory not found!")
+	}
+
+	contents := make([]*protos.ObjectInfo, len(vd.subdirs)+len(vd.files))
+
+	i := 0
+
+	for dirUuid := range vd.subdirs {
+		contents[i] = &protos.ObjectInfo{
+			ObjectId:   &protos.UUID{Value: dirUuid[:]},
+			ObjectType: protos.ObjectInfo_DIRECTORY,
+			ObjectName: m.directories[dirUuid].name,
+		}
+		i++
+	}
+
+	for fileUuid := range vd.files {
+		contents[i] = &protos.ObjectInfo{
+			ObjectId:   &protos.UUID{Value: fileUuid[:]},
+			ObjectType: protos.ObjectInfo_FILE,
+			ObjectName: m.files[fileUuid].Name,
+		}
+		i++
+	}
+
+	return contents, nil
 }
 
 func (m *VirtualFileManager) CreateNewFile(filename string, parent uuid.UUID) (uuid.UUID, error) {

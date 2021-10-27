@@ -105,7 +105,21 @@ func (fms *HootFsServer) StartServer() error {
 
 func (s *HootFsServer) GetDirectoryContents(
 	ctx context.Context, request *head.GetDirectoryContentsRequest) (*head.GetDirectoryContentsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "Method not implemented")
+	dirUuid, err := uuid.FromBytes(request.DirId.Value)
+
+	if err != nil {
+		return nil, err
+	}
+
+	contents, err := s.vfmg.GetDirectoryContentsAsProto(dirUuid)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &protos.GetDirectoryContentsResponse{
+		Objects: contents,
+	}, nil
 }
 
 func (s *HootFsServer) MakeDirectory(
@@ -213,8 +227,13 @@ func (s *HootFsServer) GetFileContents(
 		return &head.GetFileContentsResponse{Contents: contents}, nil
 	}
 
+	// TODO : In the future, we should search other machines for missing file.
+	// for now we will just search this machine only... static cluster size.
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
+
+// Both Move object and remove object require the parent IDs of the the objects being
+// modified... we don't have access to this at this moment.
 
 func (s *HootFsServer) MoveObject(
 	ctx context.Context, request *head.MoveObjectRequest) (*head.MoveObjectResponse, error) {
