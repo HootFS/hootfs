@@ -14,7 +14,7 @@ import (
 	protos "github.com/hootfs/hootfs/protos"
 	cluster "github.com/hootfs/hootfs/src/core/cluster"
 	hootfs "github.com/hootfs/hootfs/src/core/file_storage"
-	discover "github.com/hootfs/hootfs/src/discover"
+	discover "github.com/hootfs/hootfs/src/discoverServer/discover"
 	"google.golang.org/grpc"
 )
 
