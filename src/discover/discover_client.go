@@ -25,14 +25,14 @@ func (dc *DiscoverClient) JoinCluster() (uint64, map[uint64]string, error) {
     // TODO : add some form of node security here.
     // As of now, no node key is given to this node.
 
-	var opts []grpc.DialOption
+    var opts []grpc.DialOption
 
 
-	conn, err := grpc.Dial(dc.discover_ip + discover_port, opts...)
-	if err != nil {
-		return 0, nil, err
-	}
-	defer conn.Close()
+    conn, err := grpc.Dial(dc.discover_ip + discover_port, opts...)
+    if err != nil {
+        return 0, nil, err
+    }
+    defer conn.Close()
 
 
     request := protos.JoinClusterRequest{ClusterKey: ""}
@@ -48,14 +48,14 @@ func (dc *DiscoverClient) JoinCluster() (uint64, map[uint64]string, error) {
 
 
 func (dc *DiscoverClient) GetActive() (map[uint64]string, error) {
-	var opts []grpc.DialOption
+    var opts []grpc.DialOption
 
 
-	conn, err := grpc.Dial(dc.discover_ip + discover_port, opts...)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
+    conn, err := grpc.Dial(dc.discover_ip + discover_port, opts...)
+    if err != nil {
+        return nil, err
+    }
+    defer conn.Close()
     
     request := protos.GetActiveRequest{NodeKey: ""}
     client := protos.NewDiscoverServiceClient(conn)
@@ -69,14 +69,14 @@ func (dc *DiscoverClient) GetActive() (map[uint64]string, error) {
 }
 
 func (dc *DiscoverClient) Ping() error {
-	var opts []grpc.DialOption
+    var opts []grpc.DialOption
 
 
-	conn, err := grpc.Dial(dc.discover_ip + discover_port, opts...)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
+    conn, err := grpc.Dial(dc.discover_ip + discover_port, opts...)
+    if err != nil {
+        return err
+    }
+    defer conn.Close()
 
     request := protos.PingRequest{NodeKey: ""}
     client := protos.NewDiscoverServiceClient(conn)
