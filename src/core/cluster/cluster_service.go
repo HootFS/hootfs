@@ -11,6 +11,8 @@ import (
 	hootpb "github.com/hootfs/hootfs/protos"
 	hootfs "github.com/hootfs/hootfs/src/core/file_storage"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -19,9 +21,10 @@ const (
 
 var ErrUnimplemented = errors.New("Unimplemented")
 var ErrMessageFailed = errors.New("Message was not sent.")
+var ErrInvalidId = status.Error(codes.InvalidArgument, "Could not parse specified UUID")
 
 type ClusterServer struct {
-	// Is this atomic though????
+	// Is this atomic though???? Now it is
 	fmg  *hootfs.FileManager
 	vfmg *hootfs.VirtualFileManager
 
@@ -62,16 +65,16 @@ func (c *ClusterServer) AddNewFileCS(ctx context.Context,
 	// For tabbing
 	new_id, err := uuid.FromBytes(request.NewFileId.Value)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get proper file ID")
+		return nil, ErrInvalidId
 	}
 	par_id, err := uuid.FromBytes(request.ParentDirId.Value)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get proper parent ID")
+		return nil, ErrInvalidId
 	}
 
 	// Add new file to virtual file manager
 	c.vfmg.AddNewFile(
-		hootfs.VirtualFile{
+		&hootfs.VirtualFile{
 			Name: request.NewFileName,
 			Id:   new_id},
 		par_id)
@@ -79,7 +82,8 @@ func (c *ClusterServer) AddNewFileCS(ctx context.Context,
 	new_file_info := hootfs.FileInfo{NamespaceId: request.UserId, ObjectId: new_id}
 	c.fmg.CreateFile(request.NewFileName, &new_file_info)
 	if err := c.fmg.WriteFile(&new_file_info, request.Contents); err != nil {
-		return nil, fmt.Errorf("Failed to write to file: %v", err)
+		return nil, status.Error(
+			codes.Internal, fmt.Sprintf("Failed to write  to file: %v", err))
 	}
 
 	return &hootpb.AddNewFileCSResponse{CreatedFileId: &hootpb.UUID{Value: new_id[:]}}, nil
@@ -87,16 +91,51 @@ func (c *ClusterServer) AddNewFileCS(ctx context.Context,
 
 func (c *ClusterServer) MakeDirectoryCS(ctx context.Context,
 	request *hootpb.MakeDirectoryCSRequest) (*hootpb.MakeDirectoryCSResponse, error) {
-
-	return nil, ErrUnimplemented
+	dir_id, err := uuid.FromBytes(request.NewDirId.Value)
+	if err != nil {
+		return nil, ErrInvalidId
+	}
+	par_id, err := uuid.FromBytes(request.ParentDirId.Value)
+	if err != nil {
+		return nil, ErrInvalidId
+	}
+	vir_dir := hootfs.VirtualDirectory{
+		Name:    request.NewDirName,
+		Id:      dir_id,
+		Subdirs: make(map[uuid.UUID]bool),
+		Files:   make(map[uuid.UUID]bool),
+	}
+	c.vfmg.AddNewDirectory(&vir_dir, par_id)
+	return &hootpb.MakeDirectoryCSResponse{
+		CreatedDirId: &hootpb.UUID{Value: dir_id[:]},
+	}, nil
 }
 
 func (c *ClusterServer) UpdateFileContentsCS(ctx context.Context,
 	request *hootpb.UpdateFileContentsCSRequest) (*hootpb.UpdateFileContentsCSResponse, error) {
-	return nil, ErrUnimplemented
+	file_id, err := uuid.FromBytes(request.FileId.Value)
+	if err != nil {
+		return nil, ErrInvalidId
+	}
+	file_info := hootfs.FileInfo{NamespaceId: request.UserId, ObjectId: file_id}
+	if err := c.fmg.WriteFile(&file_info, request.Contents); err != nil {
+		err_message := fmt.Sprintf("Unable to write file %v: %v",
+			file_info.ObjectId, err)
+		return nil, status.Error(codes.Internal, err_message)
+	}
+	return &hootpb.UpdateFileContentsCSResponse{
+		UpdatedFileId: &hootpb.UUID{Value: file_id[:]}}, nil
 }
 
 func (c *ClusterServer) MoveObjectCS(ctx context.Context, request *hootpb.MoveObjectCSRequest) (*hootpb.MoveObjectCSResponse, error) {
+	obj_id, err := uuid.FromBytes(request.CurrObjectId.Value)
+	if err != nil {
+		return nil, ErrInvalidId
+	}
+	// Check if directory
+	if _, exists := c.vfmg.Directories[obj_id]; exists {
+
+	}
 	return nil, ErrUnimplemented
 }
 

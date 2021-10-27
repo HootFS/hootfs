@@ -35,16 +35,16 @@ func TestCreateFileWorks(t *testing.T) {
 	file_id := uuid.MustParse(strings.Repeat("1", 32))
 	test_ns := "test_namespace"
 	test_file := "test_file"
-	manager.CreateFile(test_file, &FileInfo{namespaceId: test_ns, objectId: file_id})
+	manager.CreateFile(test_file, &FileInfo{NamespaceId: test_ns, ObjectId: file_id})
 
-	file_info := manager.vfm.files[file_id]
-	if file_info.namespace != test_ns {
-		t.Fatalf("Namespaces do not match: %v, %v", file_info.namespace, test_ns)
+	file_info := manager.Vfm.files[file_id]
+	if file_info.Namespace != test_ns {
+		t.Fatalf("Namespaces do not match: %v, %v", file_info.Namespace, test_ns)
 	}
-	if file_info.filetype != FILE {
+	if file_info.Filetype != FILE {
 		t.Fatalf("Expected file, got directory")
 	}
-	if file_info.relativeFilename != test_file {
+	if file_info.RelativeFilename != test_file {
 		t.Fatalf("Filenames do not match")
 	}
 }
@@ -54,10 +54,10 @@ func TestWriteFileWorksIfFileExists(t *testing.T) {
 	file_id := uuid.MustParse(strings.Repeat("1", 32))
 	test_ns := "test_namespace"
 	test_file := "test_file"
-	file_info := FileInfo{namespaceId: test_ns, objectId: file_id}
+	file_info := FileInfo{NamespaceId: test_ns, ObjectId: file_id}
 	manager.CreateFile(test_file, &file_info)
 
-	manager.fs = fakeFS{}
+	manager.Fs = fakeFS{}
 	if err := manager.WriteFile(&file_info, make([]byte, 1)); err != nil {
 		t.Fatalf("Failed to write to supposedly existing file; %v", err)
 	}
@@ -68,8 +68,8 @@ func TestWriteFileFailsIfFileDNE(t *testing.T) {
 	file_id := uuid.MustParse(strings.Repeat("1", 32))
 	test_ns := "test_namespace"
 
-	file_info := FileInfo{namespaceId: test_ns, objectId: file_id}
-	manager.fs = fakeFS{}
+	file_info := FileInfo{NamespaceId: test_ns, ObjectId: file_id}
+	manager.Fs = fakeFS{}
 
 	if err := manager.WriteFile(&file_info, make([]byte, 1)); err == nil {
 		t.Fatalf("Managed to write to non-existing file")
@@ -81,10 +81,10 @@ func TestReadFileWorksIfFileExists(t *testing.T) {
 	file_id := uuid.MustParse(strings.Repeat("1", 32))
 	test_ns := "test_namespace"
 	test_file := "test_file"
-	file_info := FileInfo{namespaceId: test_ns, objectId: file_id}
+	file_info := FileInfo{NamespaceId: test_ns, ObjectId: file_id}
 	manager.CreateFile(test_file, &file_info)
 
-	manager.fs = fakeFS{}
+	manager.Fs = fakeFS{}
 	if _, err := manager.ReadFile(&file_info); err != nil {
 		t.Fatalf("Failed to write to supposedly existing file; %v", err)
 	}
@@ -95,8 +95,8 @@ func TestReadFileFailsIfFileDNE(t *testing.T) {
 	file_id := uuid.MustParse(strings.Repeat("1", 32))
 	test_ns := "test_namespace"
 
-	file_info := FileInfo{namespaceId: test_ns, objectId: file_id}
-	manager.fs = fakeFS{}
+	file_info := FileInfo{NamespaceId: test_ns, ObjectId: file_id}
+	manager.Fs = fakeFS{}
 
 	_, err := manager.ReadFile(&file_info)
 	if err == nil {
