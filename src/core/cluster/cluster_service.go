@@ -3,12 +3,14 @@ package cluster
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 
+	"github.com/google/uuid"
 	hootpb "github.com/hootfs/hootfs/protos"
+	hootfs "github.com/hootfs/hootfs/src/core/file_storage"
 	"google.golang.org/grpc"
-    hootfs "github.com/hootfs/hootfs/src/core/file_storage"
 )
 
 const (
@@ -19,18 +21,18 @@ var ErrUnimplemented = errors.New("Unimplemented")
 var ErrMessageFailed = errors.New("Message was not sent.")
 
 type ClusterServer struct {
-    // Is this atomic though????
-    fmg *hootfs.FileManager
-    vfmg *hootfs.VirtualFileManager 
+	// Is this atomic though????
+	fmg  *hootfs.FileManager
+	vfmg *hootfs.VirtualFileManager
 
 	hootpb.UnimplementedClusterServiceServer
 }
 
 func NewClusterServer(fmg *hootfs.FileManager, vfmg *hootfs.VirtualFileManager) *ClusterServer {
-    return &ClusterServer{
-        fmg: fmg,
-        vfmg: vfmg,
-    }
+	return &ClusterServer{
+		fmg:  fmg,
+		vfmg: vfmg,
+	}
 }
 
 func (c *ClusterServer) StartServer() {
@@ -58,12 +60,34 @@ func (c *ClusterServer) Init() error {
 func (c *ClusterServer) AddNewFileCS(ctx context.Context,
 	request *hootpb.AddNewFileCSRequest) (*hootpb.AddNewFileCSResponse, error) {
 	// For tabbing
+	new_id, err := uuid.FromBytes(request.NewFileId.Value)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to get proper file ID")
+	}
+	par_id, err := uuid.FromBytes(request.ParentDirId.Value)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to get proper parent ID")
+	}
 
-	return nil, ErrUnimplemented
+	// Add new file to virtual file manager
+	c.vfmg.AddNewFile(
+		hootfs.VirtualFile{
+			Name: request.NewFileName,
+			Id:   new_id},
+		par_id)
+
+	new_file_info := hootfs.FileInfo{NamespaceId: request.UserId, ObjectId: new_id}
+	c.fmg.CreateFile(request.NewFileName, &new_file_info)
+	if err := c.fmg.WriteFile(&new_file_info, request.Contents); err != nil {
+		return nil, fmt.Errorf("Failed to write to file: %v", err)
+	}
+
+	return &hootpb.AddNewFileCSResponse{CreatedFileId: &hootpb.UUID{Value: new_id[:]}}, nil
 }
 
 func (c *ClusterServer) MakeDirectoryCS(ctx context.Context,
 	request *hootpb.MakeDirectoryCSRequest) (*hootpb.MakeDirectoryCSResponse, error) {
+
 	return nil, ErrUnimplemented
 }
 
