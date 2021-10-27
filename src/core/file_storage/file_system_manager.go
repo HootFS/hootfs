@@ -9,6 +9,38 @@ import (
 	"github.com/google/uuid"
 )
 
+// var fs fileSystem = osFS{}
+
+type fileSystem interface {
+	WriteFile(name string, data []byte, perm os.FileMode) error
+	ReadFile(name string) ([]byte, error)
+	Mkdir(name string, perm os.FileMode) error
+	Remove(name string) error
+	RemoveAll(name string) error
+}
+
+type osFS struct{}
+
+func (osFS) WriteFile(name string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(name, data, perm)
+}
+
+func (osFS) ReadFile(name string) ([]byte, error) {
+	return os.ReadFile(name)
+}
+
+func (osFS) Mkdir(name string, perm os.FileMode) error {
+	return os.Mkdir(name, perm)
+}
+
+func (osFS) Remove(name string) error {
+	return os.Remove(name)
+}
+
+func (osFS) RemoveAll(name string) error {
+	return os.RemoveAll(name)
+}
+
 var ErrFileNotFound = errors.New("File not found")
 var ErrNeedFileNotDir = errors.New("Expected to get a file; got a directory")
 var ErrNeedDirNotFile = errors.New("Expected to get a directory; got a file")
@@ -42,10 +74,20 @@ type VirtualFileMapper struct {
 
 type FileManager struct {
 	root string
+	fs   fileSystem
 	vfm  VirtualFileMapper
 }
 
 var ErrUnimplemented = errors.New("Method unimplemented")
+
+func NewFileSystemManager(root string) *FileManager {
+	manager := new(FileManager)
+	manager.root = root
+	manager.fs = osFS{}
+	manager.vfm = VirtualFileMapper{files: make(map[uuid.UUID]FileObject)}
+
+	return manager
+}
 
 func CreateNewSystemDirectory(namespace string, name string) *FileObject {
 	return &FileObject{namespace: namespace, parentDir: "", relativeFilename: name, filetype: DIRECTORY}
@@ -75,7 +117,7 @@ func (m *FileManager) WriteFile(fileInfo FileInfo, contents []byte) error {
 		return ErrNeedFileNotDir
 	}
 
-	return os.WriteFile(path.Join(m.root, fileObj.namespace, fileObj.parentDir, fileObj.relativeFilename), contents, 666)
+	return m.fs.WriteFile(path.Join(m.root, fileObj.namespace, fileObj.parentDir, fileObj.relativeFilename), contents, 666)
 }
 
 func (m FileManager) ReadFile(fileInfo FileInfo) ([]byte, error) {
@@ -92,7 +134,7 @@ func (m FileManager) ReadFile(fileInfo FileInfo) ([]byte, error) {
 		return nil, ErrNeedFileNotDir
 	}
 
-	return os.ReadFile(path.Join(m.root, fileInfo.namespaceId, fileObj.parentDir, fileObj.relativeFilename))
+	return m.fs.ReadFile(path.Join(m.root, fileInfo.namespaceId, fileObj.parentDir, fileObj.relativeFilename))
 }
 
 //
@@ -102,7 +144,7 @@ func (m FileManager) DeleteFile(fileInfo FileInfo) error {
 		return ErrFileNotFound
 	}
 
-	err := os.Remove(path.Join(m.root, fileObj.parentDir, fileObj.relativeFilename))
+	err := m.fs.Remove(path.Join(m.root, fileObj.parentDir, fileObj.relativeFilename))
 	if err != nil {
 		return err
 	}
@@ -111,12 +153,12 @@ func (m FileManager) DeleteFile(fileInfo FileInfo) error {
 }
 
 func (m FileManager) CreateDirectory(directory_name string, fileInfo FileInfo) error {
-	err := os.Mkdir(path.Join(m.root, fileInfo.namespaceId, directory_name), 775)
+	err := m.fs.Mkdir(path.Join(m.root, fileInfo.namespaceId, directory_name), 775)
 	if err != nil {
 		return fmt.Errorf("Error creating directory: %v", err)
 	}
 	m.vfm.files[fileInfo.objectId] = *CreateNewSystemDirectory(fileInfo.namespaceId, directory_name)
-	return ErrUnimplemented
+	return nil
 }
 
 func (m FileManager) DeleteDirectory(fileInfo FileInfo) error {
@@ -125,7 +167,7 @@ func (m FileManager) DeleteDirectory(fileInfo FileInfo) error {
 		return ErrFileNotFound
 	}
 
-	err := os.RemoveAll(path.Join(m.root, fileObj.parentDir, fileObj.relativeFilename))
+	err := m.fs.RemoveAll(path.Join(m.root, fileObj.parentDir, fileObj.relativeFilename))
 	if err != nil {
 		return err
 	}
