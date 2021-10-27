@@ -27,15 +27,30 @@ type VirtualFileManager struct {
 	files       map[uuid.UUID]VirtualFile
 }
 
-func (m *VirtualFileManager) CreateNewFile(filename string, parent VirtualDirectory) (uuid.UUID, error) {
+func (m *VirtualFileManager) CreateNewFile(filename string, parent uuid.UUID) (uuid.UUID, error) {
 	fileUUID, err := uuid.NewUUID()
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("Failed to get new UUID for virtual file: %v", err)
 	}
-	parent.files[fileUUID] = true
+	m.directories[parent].files[fileUUID] = true
 	m.files[fileUUID] = VirtualFile{name: filename, id: fileUUID}
 
 	return fileUUID, nil
+}
+
+func (m *VirtualFileManager) CreateNewDirectory(dirname string, parent uuid.UUID) (uuid.UUID, error) {
+	dirUUID, err := uuid.NewUUID()
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("Failed to get new UUID for virtual file: %v", err)
+	}
+	m.directories[parent].files[dirUUID] = true
+	m.directories[dirUUID] = VirtualDirectory{
+		name:    dirname,
+		id:      dirUUID,
+		subdirs: make(map[uuid.UUID]bool),
+		files:   make(map[uuid.UUID]bool)}
+
+	return dirUUID, nil
 }
 
 func (m *VirtualFileManager) AddNewFile(file VirtualFile, parent uuid.UUID) error {
@@ -43,8 +58,21 @@ func (m *VirtualFileManager) AddNewFile(file VirtualFile, parent uuid.UUID) erro
 	if !exists {
 		return ErrDirNotFound(parent)
 	}
+
 	dir.files[file.id] = true
 	m.files[file.id] = file
+
+	return nil
+}
+
+func (m *VirtualFileManager) AddNewDirectory(dir VirtualDirectory, parent uuid.UUID) error {
+	par_dir, exists := m.directories[parent]
+	if !exists {
+		return ErrDirNotFound(parent)
+	}
+
+	par_dir.subdirs[dir.id] = true
+	m.directories[dir.id] = dir
 
 	return nil
 }
