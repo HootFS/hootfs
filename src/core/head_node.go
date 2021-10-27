@@ -104,6 +104,8 @@ func (fms *HootFsServer) StartServer() error {
 
 func (s *HootFsServer) GetDirectoryContents(
 	ctx context.Context, request *head.GetDirectoryContentsRequest) (*head.GetDirectoryContentsResponse, error) {
+    
+
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 

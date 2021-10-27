@@ -34,7 +34,7 @@ func (dc *DiscoverClient) JoinCluster() (uint64, map[uint64]string, error) {
     var opts []grpc.DialOption
 
 
-    conn, err := grpc.Dial(dc.discoverIp + discover_port, opts...)
+    conn, err := grpc.Dial(dc.discoverIp + discoverPort, opts...)
     if err != nil {
         return 0, nil, err
     }
@@ -57,7 +57,7 @@ func (dc *DiscoverClient) GetActive() (map[uint64]string, error) {
     var opts []grpc.DialOption
 
 
-    conn, err := grpc.Dial(dc.discoverIp + discover_port, opts...)
+    conn, err := grpc.Dial(dc.discoverIp + discoverPort, opts...)
     if err != nil {
         return nil, err
     }
@@ -78,7 +78,7 @@ func (dc *DiscoverClient) Ping() error {
     var opts []grpc.DialOption
 
 
-    conn, err := grpc.Dial(dc.discoverIp + discover_port, opts...)
+    conn, err := grpc.Dial(dc.discoverIp + discoverPort, opts...)
     if err != nil {
         return err
     }
