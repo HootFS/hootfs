@@ -27,8 +27,21 @@ func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 		req := head.GetFileContentsRequest{FileId: &head.UUID{Value: fileid[:]}}
 		rpcClient.GetFileContents(context.Background(), &req)
 	case "write":
+		if len(args) != 4 {
+			fmt.Fprintln(os.Stderr, "usage: write [dir] [name] [contents]")
+			return
+		}
+		dstuuid, _ := uuid.Parse(args[1])
+		contents, err := os.ReadFile(args[3])
+		if err != nil {
+			fmt.Fprint(os.Stderr, err)
+			return
+		}
+		req := head.AddNewFileRequest{Contents: contents, FileName: args[2], DirId: &head.UUID{Value: dstuuid[:]}} // TODO add uuid
+		rpcClient.AddNewFile(context.Background(), &req)
+	case "update":
 		if len(args) != 3 {
-			fmt.Fprintln(os.Stderr, "usage: write [dst] [src]")
+			fmt.Fprintln(os.Stderr, "usage: update [file] [contents]")
 			return
 		}
 		dstuuid, _ := uuid.Parse(args[1])
@@ -37,8 +50,8 @@ func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 			fmt.Fprint(os.Stderr, err)
 			return
 		}
-		req := head.AddNewFileRequest{Contents: contents, FileName: args[2], DirId: &head.UUID{Value: dstuuid[:]}} // TODO add uuid
-		rpcClient.AddNewFile(context.Background(), &req)
+		req := head.UpdateFileContentsRequest{FileId: &head.UUID{Value: dstuuid[:]}, Contents: contents}
+		rpcClient.UpdateFileContents(context.Background(), &req)
 	case "move":
 		if len(args) != 3 {
 			fmt.Fprintln(os.Stderr, "usage: move [dir] [newname] [src]")
