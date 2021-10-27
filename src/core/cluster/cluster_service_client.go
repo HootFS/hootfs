@@ -22,19 +22,19 @@ type ClusterServiceClient struct {
 	// updated in parallel.
 	rwLock sync.RWMutex
 
-	nodes  map[uint64]string
-	nodeId uint64
+	Nodes  map[uint64]string
+	NodeId uint64
 }
 
 func NewClusterServiceClient(nodeId uint64) *ClusterServiceClient {
 	return &ClusterServiceClient{
-		nodeId: nodeId,
+		NodeId: nodeId,
 	}
 }
 
 func (c *ClusterServiceClient) UpdateNodes(nodes map[uint64]string) {
 	c.rwLock.Lock()
-	c.nodes = nodes
+	c.Nodes = nodes
 	c.rwLock.Unlock()
 }
 
@@ -42,7 +42,7 @@ func (c *ClusterServiceClient) SendAddFile(destId uint64, userId string, parentD
 	var opts []grpc.DialOption
 
 	c.rwLock.RLock()
-	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
+	conn, err := grpc.Dial(c.Nodes[destId]+port, opts...)
 	c.rwLock.RUnlock()
 
 	if err != nil {
@@ -76,7 +76,7 @@ func (c *ClusterServiceClient) SendMakeDirectory(destId uint64, userId string, p
 	var opts []grpc.DialOption
 
 	c.rwLock.RLock()
-	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
+	conn, err := grpc.Dial(c.Nodes[destId]+port, opts...)
 	c.rwLock.RUnlock()
 
 	if err != nil {
@@ -109,7 +109,7 @@ func (c *ClusterServiceClient) SendUpdateFileContentsRequest(destId uint64, user
 	var opts []grpc.DialOption
 
 	c.rwLock.RLock()
-	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
+	conn, err := grpc.Dial(c.Nodes[destId]+port, opts...)
 	c.rwLock.RUnlock()
 	if err != nil {
 		return err
@@ -140,7 +140,7 @@ func (c *ClusterServiceClient) SendMoveObject(destId uint64, userId string, curr
 	var opts []grpc.DialOption
 
 	c.rwLock.RLock()
-	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
+	conn, err := grpc.Dial(c.Nodes[destId]+port, opts...)
 	c.rwLock.RUnlock()
 
 	if err != nil {
@@ -173,7 +173,7 @@ func (c *ClusterServiceClient) SendRemoveObject(destId uint64, userId string, ob
 	var opts []grpc.DialOption
 
 	c.rwLock.RLock()
-	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
+	conn, err := grpc.Dial(c.Nodes[destId]+port, opts...)
 	c.rwLock.RUnlock()
 
 	if err != nil {
