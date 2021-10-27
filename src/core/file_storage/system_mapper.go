@@ -35,7 +35,7 @@ func (s *SystemMapper) MapNewFile(fileId uuid.UUID) ([]uint64, error) {
 		s.systemMapping[fileId] = append(s.systemMapping[fileId], k)
 	}
 
-	return nil, nil
+	return s.systemMapping[fileId], nil
 }
 
 func (s *SystemMapper) RemoveFile(fileId uuid.UUID) error {
