@@ -13,6 +13,12 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	// After merging, maybe have this resolve from
+	// head_node.go ... instead of redefining it here.
+	connectingPort = ":50060"
+)
+
 func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 	if len(args) == 0 { // blank command
 		return
@@ -97,7 +103,7 @@ func main() {
 
 	// connect to the rpc
 	var grpcOpts []grpc.DialOption
-	conn, err := grpc.Dial(serverAddr, grpcOpts...)
+	conn, err := grpc.Dial(serverAddr+connectingPort, grpcOpts...)
 	if err != nil {
 		// failed to connect?
 		fmt.Fprint(os.Stderr, err)
