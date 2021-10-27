@@ -35,7 +35,7 @@ func TestCreateFileWorks(t *testing.T) {
 	file_id := uuid.MustParse(strings.Repeat("1", 32))
 	test_ns := "test_namespace"
 	test_file := "test_file"
-	manager.CreateFile(test_file, FileInfo{namespaceId: test_ns, objectId: file_id})
+	manager.CreateFile(test_file, &FileInfo{namespaceId: test_ns, objectId: file_id})
 
 	file_info := manager.vfm.files[file_id]
 	if file_info.namespace != test_ns {
@@ -55,10 +55,10 @@ func TestWriteFileWorksIfFileExists(t *testing.T) {
 	test_ns := "test_namespace"
 	test_file := "test_file"
 	file_info := FileInfo{namespaceId: test_ns, objectId: file_id}
-	manager.CreateFile(test_file, file_info)
+	manager.CreateFile(test_file, &file_info)
 
 	manager.fs = fakeFS{}
-	if err := manager.WriteFile(file_info, make([]byte, 1)); err != nil {
+	if err := manager.WriteFile(&file_info, make([]byte, 1)); err != nil {
 		t.Fatalf("Failed to write to supposedly existing file; %v", err)
 	}
 }
@@ -71,7 +71,7 @@ func TestWriteFileFailsIfFileDNE(t *testing.T) {
 	file_info := FileInfo{namespaceId: test_ns, objectId: file_id}
 	manager.fs = fakeFS{}
 
-	if err := manager.WriteFile(file_info, make([]byte, 1)); err == nil {
+	if err := manager.WriteFile(&file_info, make([]byte, 1)); err == nil {
 		t.Fatalf("Managed to write to non-existing file")
 	}
 }
@@ -82,10 +82,10 @@ func TestReadFileWorksIfFileExists(t *testing.T) {
 	test_ns := "test_namespace"
 	test_file := "test_file"
 	file_info := FileInfo{namespaceId: test_ns, objectId: file_id}
-	manager.CreateFile(test_file, file_info)
+	manager.CreateFile(test_file, &file_info)
 
 	manager.fs = fakeFS{}
-	if _, err := manager.ReadFile(file_info); err != nil {
+	if _, err := manager.ReadFile(&file_info); err != nil {
 		t.Fatalf("Failed to write to supposedly existing file; %v", err)
 	}
 }
@@ -98,7 +98,7 @@ func TestReadFileFailsIfFileDNE(t *testing.T) {
 	file_info := FileInfo{namespaceId: test_ns, objectId: file_id}
 	manager.fs = fakeFS{}
 
-	_, err := manager.ReadFile(file_info)
+	_, err := manager.ReadFile(&file_info)
 	if err == nil {
 		t.Fatalf("Managed to read non-existing file")
 	}

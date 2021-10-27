@@ -99,11 +99,11 @@ func CreateNewSystemFile(namespace string, name string) *FileObject {
 
 // Lazy file creation
 // File will only be written to system once contents are available.
-func (m *FileManager) CreateFile(filename string, fileInfo FileInfo) {
+func (m *FileManager) CreateFile(filename string, fileInfo *FileInfo) {
 	m.vfm.files[fileInfo.objectId] = *CreateNewSystemFile(fileInfo.namespaceId, filename)
 }
 
-func (m *FileManager) WriteFile(fileInfo FileInfo, contents []byte) error {
+func (m *FileManager) WriteFile(fileInfo *FileInfo, contents []byte) error {
 	fileObj, exists := m.vfm.files[fileInfo.objectId]
 	if !exists {
 		return ErrFileNotFound
@@ -120,7 +120,7 @@ func (m *FileManager) WriteFile(fileInfo FileInfo, contents []byte) error {
 	return m.fs.WriteFile(path.Join(m.root, fileObj.namespace, fileObj.parentDir, fileObj.relativeFilename), contents, 666)
 }
 
-func (m FileManager) ReadFile(fileInfo FileInfo) ([]byte, error) {
+func (m *FileManager) ReadFile(fileInfo *FileInfo) ([]byte, error) {
 	fileObj, exists := m.vfm.files[fileInfo.objectId]
 	if !exists {
 		return nil, ErrFileNotFound
@@ -134,11 +134,16 @@ func (m FileManager) ReadFile(fileInfo FileInfo) ([]byte, error) {
 		return nil, ErrNeedFileNotDir
 	}
 
-	return m.fs.ReadFile(path.Join(m.root, fileInfo.namespaceId, fileObj.parentDir, fileObj.relativeFilename))
+	data, err := m.fs.ReadFile(path.Join(m.root, fileInfo.namespaceId, fileObj.parentDir, fileObj.relativeFilename))
+	if err != nil {
+		return make([]byte, 0), nil
+	}
+
+	return data, nil
 }
 
 //
-func (m FileManager) DeleteFile(fileInfo FileInfo) error {
+func (m *FileManager) DeleteFile(fileInfo *FileInfo) error {
 	fileObj, exists := m.vfm.files[fileInfo.objectId]
 	if !exists {
 		return ErrFileNotFound
@@ -152,7 +157,7 @@ func (m FileManager) DeleteFile(fileInfo FileInfo) error {
 	return nil
 }
 
-func (m FileManager) CreateDirectory(directory_name string, fileInfo FileInfo) error {
+func (m *FileManager) createDirectory(directory_name string, fileInfo *FileInfo) error {
 	err := m.fs.Mkdir(path.Join(m.root, fileInfo.namespaceId, directory_name), 775)
 	if err != nil {
 		return fmt.Errorf("Error creating directory: %v", err)
@@ -161,7 +166,7 @@ func (m FileManager) CreateDirectory(directory_name string, fileInfo FileInfo) e
 	return nil
 }
 
-func (m FileManager) DeleteDirectory(fileInfo FileInfo) error {
+func (m *FileManager) DeleteDirectory(fileInfo *FileInfo) error {
 	fileObj, exists := m.vfm.files[fileInfo.objectId]
 	if !exists {
 		return ErrFileNotFound
