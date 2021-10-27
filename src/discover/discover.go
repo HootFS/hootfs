@@ -15,7 +15,7 @@ import (
 )
 
 const (
-    discover_port = ":50053"
+    discoverPort = ":50053"
     clusterMaxSize = 1000
     pingDurr = 5
 ) 
@@ -59,7 +59,7 @@ func NewDiscoverServer() (*DiscoverServer) {
 
 func (d *DiscoverServer) StartServer() {
     // Start up the discover server!
-    lis, err := net.Listen("tcp", discover_port)
+    lis, err := net.Listen("tcp", discoverPort)
     if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}

@@ -8,7 +8,13 @@ import (
 )
 
 type DiscoverClient struct {
-    discover_ip string    // Ip address of the discovery server to comnnect to.
+    discoverIp string    // Ip address of the discovery server to comnnect to.
+}
+
+func NewDiscoverClient(dip string) *DiscoverClient {
+    return &DiscoverClient{
+        discoverIp: dip,
+    }
 }
 
 func toIdMap(protoMap []*protos.NodeInfo) map[uint64]string {
@@ -28,7 +34,7 @@ func (dc *DiscoverClient) JoinCluster() (uint64, map[uint64]string, error) {
     var opts []grpc.DialOption
 
 
-    conn, err := grpc.Dial(dc.discover_ip + discover_port, opts...)
+    conn, err := grpc.Dial(dc.discoverIp + discover_port, opts...)
     if err != nil {
         return 0, nil, err
     }
@@ -51,7 +57,7 @@ func (dc *DiscoverClient) GetActive() (map[uint64]string, error) {
     var opts []grpc.DialOption
 
 
-    conn, err := grpc.Dial(dc.discover_ip + discover_port, opts...)
+    conn, err := grpc.Dial(dc.discoverIp + discover_port, opts...)
     if err != nil {
         return nil, err
     }
@@ -72,7 +78,7 @@ func (dc *DiscoverClient) Ping() error {
     var opts []grpc.DialOption
 
 
-    conn, err := grpc.Dial(dc.discover_ip + discover_port, opts...)
+    conn, err := grpc.Dial(dc.discoverIp + discover_port, opts...)
     if err != nil {
         return err
     }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+    "sync"
 
 	"github.com/google/uuid"
 	"github.com/hootfs/hootfs/protos"
@@ -15,14 +16,35 @@ import (
 var ErrIncorrectFileCreated = errors.New("The wrong file ID was returned")
 
 type ClusterServiceClient struct {
+    // This will be used to make all operations on
+    // The cluster service client atomic.
+    // This is because the nodes mapping may be
+    // updated in parallel.
+    rwLock sync.RWMutex
+
 	nodes  map[uint64]string
-	nodeId int
+	nodeId uint64 
+}
+
+func NewClusterServiceClient(nodeId uint64) *ClusterServiceClient {
+    return &ClusterServiceClient{
+        nodeId: nodeId,
+    }
+}
+
+func (c *ClusterServiceClient) UpdateNodes(nodes  map[uint64]string) {
+    c.rwLock.Lock()
+    c.nodes = nodes
+    c.rwLock.Unlock()
 }
 
 func (c *ClusterServiceClient) SendAddFile(destId uint64, userId string, parentDirId uuid.UUID, newFileId uuid.UUID, filename string, contents []byte) error {
 	var opts []grpc.DialOption
 
+    c.rwLock.RLock()
 	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
+    c.rwLock.RUnlock()
+
 	if err != nil {
 		return err
 	}
@@ -53,7 +75,10 @@ func (c *ClusterServiceClient) SendAddFile(destId uint64, userId string, parentD
 func (c *ClusterServiceClient) SendMakeDirectory(destId uint64, userId string, parentDirId uuid.UUID, newDirId uuid.UUID, dirname string) error {
 	var opts []grpc.DialOption
 
+    c.rwLock.RLock()
 	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
+    c.rwLock.RUnlock()
+
 	if err != nil {
 		return err
 	}
@@ -83,7 +108,9 @@ func (c *ClusterServiceClient) SendMakeDirectory(destId uint64, userId string, p
 func (c *ClusterServiceClient) SendUpdateFileContentsRequest(destId uint64, userId string, fileId uuid.UUID, contents []byte) error {
 	var opts []grpc.DialOption
 
+    c.rwLock.RLock()
 	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
+    c.rwLock.RUnlock()
 	if err != nil {
 		return err
 	}
@@ -112,7 +139,10 @@ func (c *ClusterServiceClient) SendUpdateFileContentsRequest(destId uint64, user
 func (c *ClusterServiceClient) SendMoveObject(destId uint64, userId string, currentObjId uuid.UUID, newParentId uuid.UUID, newName string) error {
 	var opts []grpc.DialOption
 
+    c.rwLock.RLock()
 	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
+    c.rwLock.RUnlock()
+
 	if err != nil {
 		return err
 	}
@@ -142,7 +172,10 @@ func (c *ClusterServiceClient) SendMoveObject(destId uint64, userId string, curr
 func (c *ClusterServiceClient) SendRemoveObject(destId uint64, userId string, objId uuid.UUID) error {
 	var opts []grpc.DialOption
 
+    c.rwLock.RLock()
 	conn, err := grpc.Dial(c.nodes[destId]+port, opts...)
+    c.rwLock.RUnlock()
+
 	if err != nil {
 		return err
 	}
