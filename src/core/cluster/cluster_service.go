@@ -44,7 +44,9 @@ func (c *ClusterServer) StartServer() {
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
+
+	var opts []grpc.ServerOption
+	s := grpc.NewServer(opts...)
 
 	hootpb.RegisterClusterServiceServer(s, &ClusterServer{})
 	log.Printf("Server lsitening at %v", lis.Addr())

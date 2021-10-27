@@ -37,7 +37,7 @@ type HootFsServer struct {
 	head.UnimplementedHootFsServiceServer
 }
 
-func NewFileManagerServer(dip string, fmg *hootfs.FileManager,
+func NewHootFsServer(dip string, fmg *hootfs.FileManager,
 	vfmg *hootfs.VirtualFileManager) *HootFsServer {
 	return &HootFsServer{
 		dc:   *discover.NewDiscoverClient(dip),
@@ -52,7 +52,8 @@ func (fms *HootFsServer) StartServer() error {
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
+	var opts []grpc.ServerOption
+	s := grpc.NewServer(opts...)
 
 	protos.RegisterHootFsServiceServer(s, fms)
 

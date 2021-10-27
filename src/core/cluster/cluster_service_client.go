@@ -41,6 +41,7 @@ func (c *ClusterServiceClient) UpdateNodes(nodes map[uint64]string) {
 func (c *ClusterServiceClient) SendAddFile(destId uint64, userId string, parentDirId uuid.UUID, newFileId uuid.UUID, filename string, contents []byte) error {
 	var opts []grpc.DialOption
 
+	opts = append(opts, grpc.WithInsecure())
 	c.rwLock.RLock()
 	conn, err := grpc.Dial(c.Nodes[destId]+port, opts...)
 	c.rwLock.RUnlock()
