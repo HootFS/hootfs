@@ -36,9 +36,12 @@ type fileManagerServer struct {
 	head.UnimplementedHootFsServiceServer
 }
 
-func NewFileManagerServer(dip string) *fileManagerServer {
+func NewFileManagerServer(dip string, vfmp *hootfs.VirtualFileMapper, 
+    vfmg *hootfs.VirtualFileManager) *fileManagerServer {
     return &fileManagerServer{
         dc: *discover.NewDiscoverClient(dip),
+        vfmp: vfmp,
+        vfmg: vfmg,
     }
 }
 

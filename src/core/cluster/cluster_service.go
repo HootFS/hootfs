@@ -25,6 +25,13 @@ type ClusterServer struct {
 	hootpb.UnimplementedClusterServiceServer
 }
 
+func NewClusterServer(vfmp *hootfs.VirtualFileMapper, vfmg *hootfs.VirtualFileManager) *ClusterServer {
+    return &ClusterServer{
+        vfmp: vfmp,
+        vfmg: vfmg,
+    }
+}
+
 func (c *ClusterServer) StartServer() {
 	lis, err := net.Listen("tcp", port)
 
