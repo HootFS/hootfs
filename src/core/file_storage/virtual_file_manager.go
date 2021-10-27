@@ -3,6 +3,7 @@ package hootfs
 import (
 	"fmt"
 
+    "sync"
 	"github.com/google/uuid"
 )
 
@@ -25,6 +26,8 @@ type VirtualFile struct {
 type VirtualFileManager struct {
 	directories map[uuid.UUID]VirtualDirectory
 	files       map[uuid.UUID]VirtualFile
+
+    rwLock sync.RWMutex
 }
 
 func (m *VirtualFileManager) CreateNewFile(filename string, parent uuid.UUID) (uuid.UUID, error) {
@@ -32,8 +35,11 @@ func (m *VirtualFileManager) CreateNewFile(filename string, parent uuid.UUID) (u
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("Failed to get new UUID for virtual file: %v", err)
 	}
+
+    m.rwLock.Lock()
 	m.directories[parent].files[fileUUID] = true
 	m.files[fileUUID] = VirtualFile{name: filename, id: fileUUID}
+    m.rwLock.Unlock()
 
 	return fileUUID, nil
 }
@@ -43,12 +49,15 @@ func (m *VirtualFileManager) CreateNewDirectory(dirname string, parent uuid.UUID
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("Failed to get new UUID for virtual file: %v", err)
 	}
+
+    m.rwLock.Lock()
 	m.directories[parent].files[dirUUID] = true
 	m.directories[dirUUID] = VirtualDirectory{
 		name:    dirname,
 		id:      dirUUID,
 		subdirs: make(map[uuid.UUID]bool),
 		files:   make(map[uuid.UUID]bool)}
+    m.rwLock.Unlock()
 
 	return dirUUID, nil
 }
@@ -59,8 +68,10 @@ func (m *VirtualFileManager) AddNewFile(file VirtualFile, parent uuid.UUID) erro
 		return ErrDirNotFound(parent)
 	}
 
+    m.rwLock.Lock()
 	dir.files[file.id] = true
 	m.files[file.id] = file
+    m.rwLock.Unlock()
 
 	return nil
 }
@@ -71,13 +82,18 @@ func (m *VirtualFileManager) AddNewDirectory(dir VirtualDirectory, parent uuid.U
 		return ErrDirNotFound(parent)
 	}
 
+    m.rwLock.Lock()
 	par_dir.subdirs[dir.id] = true
 	m.directories[dir.id] = dir
+    m.rwLock.Unlock()
 
 	return nil
 }
 
 func (m *VirtualFileManager) MoveObject(file uuid.UUID, oldParent uuid.UUID, newParent uuid.UUID) error {
+    m.rwLock.Lock()
+    defer m.rwLock.Unlock()
+
 	oldDir, oldExists := m.directories[oldParent]
 	if !oldExists {
 		return ErrDirNotFound(oldParent)
@@ -103,6 +119,9 @@ func (m *VirtualFileManager) MoveObject(file uuid.UUID, oldParent uuid.UUID, new
 }
 
 func (m *VirtualFileManager) RemoveObject(file uuid.UUID, parent uuid.UUID) error {
+    m.rwLock.Lock()
+    defer m.rwLock.Unlock()
+
 	dir, exists := m.directories[parent]
 	if !exists {
 		return ErrDirNotFound(parent)

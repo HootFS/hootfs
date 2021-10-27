@@ -19,6 +19,7 @@ var ErrUnimplemented = errors.New("Unimplemented")
 var ErrMessageFailed = errors.New("Message was not sent.")
 
 type ClusterServer struct {
+    // Is this atomic though????
     vfmp *hootfs.VirtualFileMapper
     vfmg *hootfs.VirtualFileManager 
 
