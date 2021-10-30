@@ -5,8 +5,8 @@ import (
 	"log"
 
 	"github.com/google/uuid"
-	"github.com/hootfs/hootfs/src/core"
 	hootfs "github.com/hootfs/hootfs/src/core/file_storage"
+	core "github.com/hootfs/hootfs/src/core/hootfs"
 )
 
 func main() {
