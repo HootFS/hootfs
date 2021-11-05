@@ -9,7 +9,7 @@ import (
 )
 
 type DiscoverClient struct {
-	discoverIp string // Ip address of the discovery server to comnnect to.
+	discoverIp string // Ip address of the discovery server to connect to.
 }
 
 func NewDiscoverClient(dip string) *DiscoverClient {

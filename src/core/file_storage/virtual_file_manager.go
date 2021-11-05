@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/hootfs/hootfs/protos"
 )
 
 type VirtualDirectory struct {
@@ -22,46 +21,11 @@ type VirtualFile struct {
 }
 
 type VirtualFileManager struct {
-	// The virtual file manager has little information on
-	// the namespace.
+	// The virtual file manager has little information on the namespace.
 	Directories map[uuid.UUID]VirtualDirectory
 	Files       map[uuid.UUID]VirtualFile
 
-	rwLock sync.RWMutex
-}
-
-func (m *VirtualFileManager) GetDirectoryContentsAsProto(dirId uuid.UUID) ([]*protos.ObjectInfo, error) {
-	m.rwLock.RLock()
-	defer m.rwLock.RUnlock()
-
-	vd, exists := m.Directories[dirId]
-	if !exists {
-		return nil, fmt.Errorf("Directory not found!")
-	}
-
-	contents := make([]*protos.ObjectInfo, len(vd.Subdirs)+len(vd.Files))
-
-	i := 0
-
-	for dirUuid := range vd.Subdirs {
-		contents[i] = &protos.ObjectInfo{
-			ObjectId:   &protos.UUID{Value: dirUuid[:]},
-			ObjectType: protos.ObjectInfo_DIRECTORY,
-			ObjectName: m.Directories[dirUuid].Name,
-		}
-		i++
-	}
-
-	for fileUuid := range vd.Files {
-		contents[i] = &protos.ObjectInfo{
-			ObjectId:   &protos.UUID{Value: fileUuid[:]},
-			ObjectType: protos.ObjectInfo_FILE,
-			ObjectName: m.Files[fileUuid].Name,
-		}
-		i++
-	}
-
-	return contents, nil
+	RWLock sync.RWMutex
 }
 
 func (m *VirtualFileManager) CreateNewFile(filename string, parent uuid.UUID) (uuid.UUID, error) {
@@ -70,10 +34,10 @@ func (m *VirtualFileManager) CreateNewFile(filename string, parent uuid.UUID) (u
 		return uuid.Nil, fmt.Errorf("Failed to get new UUID for virtual file: %v", err)
 	}
 
-	m.rwLock.Lock()
+	m.RWLock.Lock()
 	m.Directories[parent].Files[fileUUID] = true
 	m.Files[fileUUID] = VirtualFile{Name: filename, Id: fileUUID}
-	m.rwLock.Unlock()
+	m.RWLock.Unlock()
 
 	return fileUUID, nil
 }
@@ -84,14 +48,14 @@ func (m *VirtualFileManager) CreateNewDirectory(dirname string, parent uuid.UUID
 		return uuid.Nil, fmt.Errorf("Failed to get new UUID for virtual file: %v", err)
 	}
 
-	m.rwLock.Lock()
+	m.RWLock.Lock()
 	m.Directories[parent].Files[dirUUID] = true
 	m.Directories[dirUUID] = VirtualDirectory{
 		Name:    dirname,
 		Id:      dirUUID,
 		Subdirs: make(map[uuid.UUID]bool),
 		Files:   make(map[uuid.UUID]bool)}
-	m.rwLock.Unlock()
+	m.RWLock.Unlock()
 
 	return dirUUID, nil
 }
@@ -102,10 +66,10 @@ func (m *VirtualFileManager) AddNewFile(file *VirtualFile, parent uuid.UUID) err
 		return ErrDirNotFound(parent)
 	}
 
-	m.rwLock.Lock()
+	m.RWLock.Lock()
 	dir.Files[file.Id] = true
 	m.Files[file.Id] = *file
-	m.rwLock.Unlock()
+	m.RWLock.Unlock()
 
 	return nil
 }
@@ -116,17 +80,17 @@ func (m *VirtualFileManager) AddNewDirectory(dir *VirtualDirectory, parent uuid.
 		return ErrDirNotFound(parent)
 	}
 
-	m.rwLock.Lock()
+	m.RWLock.Lock()
 	par_dir.Subdirs[dir.Id] = true
 	m.Directories[dir.Id] = *dir
-	m.rwLock.Unlock()
+	m.RWLock.Unlock()
 
 	return nil
 }
 
 func (m *VirtualFileManager) MoveObject(file uuid.UUID, oldParent uuid.UUID, newParent uuid.UUID) error {
-	m.rwLock.Lock()
-	defer m.rwLock.Unlock()
+	m.RWLock.Lock()
+	defer m.RWLock.Unlock()
 
 	oldDir, oldExists := m.Directories[oldParent]
 	if !oldExists {
@@ -164,8 +128,8 @@ func (m *VirtualFileManager) MoveObject(file uuid.UUID, oldParent uuid.UUID, new
 }
 
 func (m *VirtualFileManager) RemoveObject(file uuid.UUID, parent uuid.UUID) error {
-	m.rwLock.Lock()
-	defer m.rwLock.Unlock()
+	m.RWLock.Lock()
+	defer m.RWLock.Unlock()
 
 	dir, exists := m.Directories[parent]
 	if !exists {

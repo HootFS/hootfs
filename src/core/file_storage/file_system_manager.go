@@ -178,7 +178,7 @@ func (m *FileManager) DeleteFile(fileInfo *FileInfo) error {
 	return nil
 }
 
-func (m *FileManager) createDirectory(directory_name string, fileInfo *FileInfo) error {
+func (m *FileManager) CreateDirectory(directory_name string, fileInfo *FileInfo) error {
 	err := m.Fs.Mkdir(path.Join(m.Root, fileInfo.NamespaceId, directory_name), 775)
 	if err != nil {
 		return fmt.Errorf("Error creating directory: %v", err)
@@ -190,7 +190,7 @@ func (m *FileManager) createDirectory(directory_name string, fileInfo *FileInfo)
 	return nil
 }
 
-func (m *FileManager) deleteDirectory(fileInfo *FileInfo) error {
+func (m *FileManager) DeleteDirectory(fileInfo *FileInfo) error {
 	m.Vfm.rwLock.Lock()
 	defer m.Vfm.rwLock.Unlock()
 

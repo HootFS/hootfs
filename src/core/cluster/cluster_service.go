@@ -119,9 +119,7 @@ func (c *ClusterServer) UpdateFileContentsCS(ctx context.Context,
 	}
 	file_info := hootfs.FileInfo{NamespaceId: request.UserId, ObjectId: file_id}
 	if err := c.fmg.WriteFile(&file_info, request.Contents); err != nil {
-		err_message := fmt.Sprintf("Unable to write file %v: %v",
-			file_info.ObjectId, err)
-		return nil, status.Error(codes.Internal, err_message)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("Unable to write file %v: %v", file_info.ObjectId, err))
 	}
 	return &hootpb.UpdateFileContentsCSResponse{
 		UpdatedFileId: &hootpb.UUID{Value: file_id[:]}}, nil
@@ -133,7 +131,6 @@ func (c *ClusterServer) MoveObjectCS(ctx context.Context, request *hootpb.MoveOb
 		return nil, ErrInvalidId
 	}
 
-	// Check if the given UUID belongs to a directory.
 	if _, exists := c.vfmg.Directories[obj_id]; exists {
 
 	}

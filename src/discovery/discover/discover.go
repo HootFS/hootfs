@@ -29,10 +29,9 @@ type NodeCell struct {
 // The discover server keeps track of who currently is in the cluster.
 
 type DiscoverServer struct {
-	// These two maps form a bidirectional map between
-	// IP addresses and node ids.
-	// These structures are for fast lookups when pinging
-	// and adding new ids to the cluster.
+	// These two maps form a bidirectional map between IP addresses and node
+	// ids. These structures are for fast lookups when pinging and adding new
+	// ids to the cluster.
 	nodeMap map[string]*NodeCell
 	idSet   map[uint64]bool
 
@@ -40,8 +39,7 @@ type DiscoverServer struct {
 	nextId uint64
 
 	// This holds equal data to the two maps above.
-	// However, it is in a form which easily transmittable
-	// via grpc.
+	// However, it is in a form which easily transmittable via grpc.
 	protoActiveMap []*protos.NodeInfo
 
 	rwLock sync.RWMutex
@@ -88,24 +86,20 @@ func (d *DiscoverServer) StartServer() {
 }
 
 func (d *DiscoverServer) GenSlices() {
-	// This function regenerates the slices inside
-	// the Discover server struct.
+	// This function regenerates the slices inside the Discover server struct.
 	// Note, in theory we could just edit the existing slices...
 	// but this could lead to concurency errors with grpc.
 	// So, this, while slow, is the best option.
 	//
 	// NOTE : this is not thread safe!!!
-	// When using this function, make sure a lock has
-	// been aquired.
+	// When using this function, make sure a lock has been aquired.
 	d.protoActiveMap = make([]*protos.NodeInfo, len(d.nodeMap))
 
-	i := 0
 	for ip, nc := range d.nodeMap {
-		d.protoActiveMap[i] = &protos.NodeInfo{
+		d.protoActiveMap = append(d.protoActiveMap, &protos.NodeInfo{
 			NodeId: nc.id,
 			NodeIp: ip,
-		}
-		i++
+		})
 	}
 }
 
@@ -134,8 +128,7 @@ func (d *DiscoverServer) DropIdleAndReset() {
 	}
 
 	if idleFound {
-		// Only regenerate id slices if
-		// a node was removed from the cluster.
+		// Only regenerate id slices if a node was removed from the cluster.
 		d.GenSlices()
 	}
 }

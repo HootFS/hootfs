@@ -16,10 +16,9 @@ import (
 var ErrIncorrectFileCreated = errors.New("The wrong file ID was returned")
 
 type ClusterServiceClient struct {
-	// This will be used to make all operations on
-	// The cluster service client atomic.
-	// This is because the nodes mapping may be
-	// updated in parallel.
+	// This will be used to make all operations on the cluster
+	// service client atomic. This is because the nodes mapping may be updated
+	// in parallel.
 	rwLock sync.RWMutex
 
 	Nodes  map[uint64]string

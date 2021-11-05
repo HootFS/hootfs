@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"time"
@@ -46,6 +47,37 @@ func NewHootFsServer(dip string, fmg *hootfs.FileManager,
 	}
 }
 
+func (fms *HootFsServer) GetDirectoryContentsAsProto(dirId uuid.UUID) ([]*protos.ObjectInfo, error) {
+
+	fms.vfmg.RWLock.RLock()
+	defer fms.vfmg.RWLock.RUnlock()
+
+	vd, exists := fms.vfmg.Directories[dirId]
+	if !exists {
+		return nil, fmt.Errorf("Directory not found!")
+	}
+
+	contents := make([]*protos.ObjectInfo, len(vd.Subdirs)+len(vd.Files))
+
+	for dirUuid := range vd.Subdirs {
+		contents = append(contents, &protos.ObjectInfo{
+			ObjectId:   &protos.UUID{Value: dirUuid[:]},
+			ObjectType: protos.ObjectInfo_DIRECTORY,
+			ObjectName: fms.vfmg.Directories[dirUuid].Name,
+		})
+	}
+
+	for fileUuid := range vd.Files {
+		contents = append(contents, &protos.ObjectInfo{
+			ObjectId:   &protos.UUID{Value: fileUuid[:]},
+			ObjectType: protos.ObjectInfo_FILE,
+			ObjectName: fms.vfmg.Files[fileUuid].Name,
+		})
+	}
+
+	return contents, nil
+}
+
 func (fms *HootFsServer) StartServer() error {
 	// First start server.
 	lis, err := net.Listen("tcp", headPort)
@@ -75,8 +107,7 @@ func (fms *HootFsServer) StartServer() error {
 
 			if err != nil {
 				// Error case!
-				// Not sure what to do here
-				// if we cannot ping the discovery
+				// Not sure what to do here if we cannot ping the discovery
 				// server.
 			}
 		}
@@ -112,7 +143,7 @@ func (s *HootFsServer) GetDirectoryContents(
 		return nil, err
 	}
 
-	contents, err := s.vfmg.GetDirectoryContentsAsProto(dirUuid)
+	contents, err := s.GetDirectoryContentsAsProto(dirUuid)
 
 	if err != nil {
 		return nil, err
@@ -204,7 +235,8 @@ func (s *HootFsServer) UpdateFileContents(
 	newFileInfo := hootfs.FileInfo{NamespaceId: "USERID", ObjectId: fileUuid}
 
 	// If this file does not exist on this machine, an error may be thrown here.
-	// This is not a big deal, since the file should exist on another machine if we are
+	// This is not a big deal, since the file should exist on another machine
+	// if we are
 	// updating...
 	// This issue we will need to flesh out later when we have more time.
 
@@ -233,8 +265,8 @@ func (s *HootFsServer) GetFileContents(
 	return nil, status.Error(codes.Unimplemented, "Method not implemented")
 }
 
-// Both Move object and remove object require the parent IDs of the the objects being
-// modified... we don't have access to this at this moment.
+// Both Move object and remove object require the parent IDs of the the objects
+// being modified... we don't have access to this at this moment.
 
 func (s *HootFsServer) MoveObject(
 	ctx context.Context, request *head.MoveObjectRequest) (*head.MoveObjectResponse, error) {
