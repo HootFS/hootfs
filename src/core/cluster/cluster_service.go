@@ -24,7 +24,6 @@ var ErrMessageFailed = errors.New("Message was not sent.")
 var ErrInvalidId = status.Error(codes.InvalidArgument, "Could not parse specified UUID")
 
 type ClusterServer struct {
-	// Is this atomic though???? Now it is
 	fmg  *hootfs.FileManager
 	vfmg *hootfs.VirtualFileManager
 
@@ -64,7 +63,6 @@ func (c *ClusterServer) Init() error {
 
 func (c *ClusterServer) AddNewFileCS(ctx context.Context,
 	request *hootpb.AddNewFileCSRequest) (*hootpb.AddNewFileCSResponse, error) {
-	// For tabbing
 	new_id, err := uuid.FromBytes(request.NewFileId.Value)
 	if err != nil {
 		return nil, ErrInvalidId
@@ -134,10 +132,12 @@ func (c *ClusterServer) MoveObjectCS(ctx context.Context, request *hootpb.MoveOb
 	if err != nil {
 		return nil, ErrInvalidId
 	}
-	// Check if directory
+
+	// Check if the given UUID belongs to a directory.
 	if _, exists := c.vfmg.Directories[obj_id]; exists {
 
 	}
+
 	return nil, ErrUnimplemented
 }
 

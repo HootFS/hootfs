@@ -42,12 +42,22 @@ func (osFS) RemoveAll(name string) error {
 	return os.RemoveAll(name)
 }
 
+var ErrUnimplemented = errors.New("Method unimplemented")
+var ErrObjectNotFound = errors.New("Object not found")
 var ErrFileNotFound = errors.New("File not found")
 var ErrNeedFileNotDir = errors.New("Expected to get a file; got a directory")
 var ErrNeedDirNotFile = errors.New("Expected to get a directory; got a file")
 
 func ErrMismatchedNamespace(expected string, found string) error {
 	return fmt.Errorf("Namespace %s did not match expected namespace %s", found, expected)
+}
+
+func ErrDirNotFound(directory uuid.UUID) error {
+	return fmt.Errorf("Directory with ID %s not found", directory.String())
+}
+
+func ErrDuplicateIDFound(filename string, dirname string) error {
+	return fmt.Errorf("Objects have same ID (%s) (%s)", filename, dirname)
 }
 
 type FileType int
@@ -79,8 +89,6 @@ type FileManager struct {
 	Fs   fileSystem
 	Vfm  VirtualFileMapper
 }
-
-var ErrUnimplemented = errors.New("Method unimplemented")
 
 func NewFileSystemManager(root string) *FileManager {
 	manager := new(FileManager)
@@ -145,17 +153,17 @@ func (m *FileManager) ReadFile(fileInfo *FileInfo) ([]byte, error) {
 
 	data, err := m.Fs.ReadFile(path.Join(m.Root, fileInfo.NamespaceId, fileObj.ParentDir, fileObj.RelativeFilename))
 	if err != nil {
-		return make([]byte, 0), nil
+		return nil, err
 	}
 
 	return data, nil
 }
 
-//
 func (m *FileManager) DeleteFile(fileInfo *FileInfo) error {
-	m.Vfm.rwLock.RLock()
+	m.Vfm.rwLock.Lock()
+	defer m.Vfm.rwLock.Unlock()
+
 	fileObj, exists := m.Vfm.files[fileInfo.ObjectId]
-	m.Vfm.rwLock.RUnlock()
 
 	if !exists {
 		return ErrFileNotFound
@@ -166,6 +174,7 @@ func (m *FileManager) DeleteFile(fileInfo *FileInfo) error {
 		return err
 	}
 	delete(m.Vfm.files, fileInfo.ObjectId)
+
 	return nil
 }
 
@@ -188,6 +197,10 @@ func (m *FileManager) deleteDirectory(fileInfo *FileInfo) error {
 	fileObj, exists := m.Vfm.files[fileInfo.ObjectId]
 	if !exists {
 		return ErrFileNotFound
+	}
+
+	if fileObj.Filetype == DIRECTORY {
+		return ErrNeedDirNotFile
 	}
 
 	err := m.Fs.RemoveAll(path.Join(m.Root, fileObj.ParentDir, fileObj.RelativeFilename))

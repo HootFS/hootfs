@@ -9,10 +9,6 @@ import (
 	"github.com/hootfs/hootfs/protos"
 )
 
-func ErrDirNotFound(directory uuid.UUID) error {
-	return fmt.Errorf("Directory with ID %s not found", directory.String())
-}
-
 type VirtualDirectory struct {
 	Name    string
 	Id      uuid.UUID
@@ -143,9 +139,20 @@ func (m *VirtualFileManager) MoveObject(file uuid.UUID, oldParent uuid.UUID, new
 
 	_, fileExists := oldDir.Files[file]
 	_, dirExists := oldDir.Subdirs[file]
+
+	// If both a directory and file exist with the same UUID
+	// there has been an internal error. Report it.
+	if fileExists && dirExists {
+		filename := m.Directories[file].Name
+		dirname := m.Files[file].Name
+		return ErrDuplicateIDFound(filename, dirname)
+	}
+
 	if !fileExists && !dirExists {
-		return ErrFileNotFound
-	} else if fileExists {
+		return ErrObjectNotFound
+	}
+
+	if fileExists {
 		delete(oldDir.Files, file)
 		newDir.Files[file] = true
 	} else {
@@ -167,13 +174,22 @@ func (m *VirtualFileManager) RemoveObject(file uuid.UUID, parent uuid.UUID) erro
 
 	_, fileExists := dir.Files[file]
 	_, dirExists := dir.Subdirs[file]
+
+	if fileExists && dirExists {
+		filename := m.Directories[file].Name
+		dirname := m.Files[file].Name
+		return ErrDuplicateIDFound(filename, dirname)
+	}
+
 	if !fileExists && !dirExists {
-		// If the file doesn't exist, we ignore
-	} else if fileExists {
+		return ErrObjectNotFound
+	}
+
+	if fileExists {
 		delete(dir.Files, file)
 	} else {
 		delete(dir.Subdirs, file)
 	}
 
-	return ErrUnimplemented
+	return nil
 }
