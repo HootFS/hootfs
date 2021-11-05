@@ -10,8 +10,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// var fs fileSystem = osFS{}
-
 type fileSystem interface {
 	WriteFile(name string, data []byte, perm os.FileMode) error
 	ReadFile(name string) ([]byte, error)
@@ -153,7 +151,11 @@ func (m *FileManager) ReadFile(fileInfo *FileInfo) ([]byte, error) {
 
 	data, err := m.Fs.ReadFile(path.Join(m.Root, fileInfo.NamespaceId, fileObj.ParentDir, fileObj.RelativeFilename))
 	if err != nil {
-		return nil, err
+		// Here, we attempt to read a file that might not yet exist on disk.
+		// However, due to the earlier check, we can be reasonably sure that the
+		// file exsits in the virtual file system. So instead of propagating the
+		// error, we simply return an empty byte slice.
+		return make([]byte, 0), nil
 	}
 
 	return data, nil
