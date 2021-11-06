@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sync"
 
 	"github.com/google/uuid"
 )
-
-// var fs fileSystem = osFS{}
 
 type fileSystem interface {
 	WriteFile(name string, data []byte, perm os.FileMode) error
@@ -41,12 +40,22 @@ func (osFS) RemoveAll(name string) error {
 	return os.RemoveAll(name)
 }
 
+var ErrUnimplemented = errors.New("Method unimplemented")
+var ErrObjectNotFound = errors.New("Object not found")
 var ErrFileNotFound = errors.New("File not found")
 var ErrNeedFileNotDir = errors.New("Expected to get a file; got a directory")
 var ErrNeedDirNotFile = errors.New("Expected to get a directory; got a file")
 
 func ErrMismatchedNamespace(expected string, found string) error {
 	return fmt.Errorf("Namespace %s did not match expected namespace %s", found, expected)
+}
+
+func ErrDirNotFound(directory uuid.UUID) error {
+	return fmt.Errorf("Directory with ID %s not found", directory.String())
+}
+
+func ErrDuplicateIDFound(filename string, dirname string) error {
+	return fmt.Errorf("Objects have same ID (%s) (%s)", filename, dirname)
 }
 
 type FileType int
@@ -57,125 +66,149 @@ const (
 )
 
 type FileInfo struct {
-	namespaceId string
-	objectId    uuid.UUID
+	NamespaceId string
+	ObjectId    uuid.UUID
 }
 
 type FileObject struct {
-	namespace        string   // What namespace does this file belong to?
-	parentDir        string   // Parent directory relative to namespace root
-	relativeFilename string   // Filename relative to parentDir
-	filetype         FileType // File or directory?
+	Namespace        string   // What namespace does this file belong to?
+	ParentDir        string   // Parent directory relative to namespace root
+	RelativeFilename string   // Filename relative to parentDir
+	Filetype         FileType // File or directory?
 }
 
 type VirtualFileMapper struct {
-	files map[uuid.UUID]FileObject
+	files  map[uuid.UUID]FileObject
+	rwLock sync.RWMutex
 }
 
 type FileManager struct {
-	root string
-	fs   fileSystem
-	vfm  VirtualFileMapper
+	Root string
+	Fs   fileSystem
+	Vfm  VirtualFileMapper
 }
-
-var ErrUnimplemented = errors.New("Method unimplemented")
 
 func NewFileSystemManager(root string) *FileManager {
 	manager := new(FileManager)
-	manager.root = root
-	manager.fs = osFS{}
-	manager.vfm = VirtualFileMapper{files: make(map[uuid.UUID]FileObject)}
+	manager.Root = root
+	manager.Fs = osFS{}
+	manager.Vfm = VirtualFileMapper{files: make(map[uuid.UUID]FileObject)}
 
 	return manager
 }
 
 func CreateNewSystemDirectory(namespace string, name string) *FileObject {
-	return &FileObject{namespace: namespace, parentDir: "", relativeFilename: name, filetype: DIRECTORY}
+	return &FileObject{Namespace: namespace, ParentDir: "", RelativeFilename: name, Filetype: DIRECTORY}
 }
 
 func CreateNewSystemFile(namespace string, name string) *FileObject {
-	return &FileObject{namespace: namespace, parentDir: "", relativeFilename: name, filetype: FILE}
+	return &FileObject{Namespace: namespace, ParentDir: "", RelativeFilename: name, Filetype: FILE}
 }
 
 // Lazy file creation
 // File will only be written to system once contents are available.
 func (m *FileManager) CreateFile(filename string, fileInfo *FileInfo) {
-	m.vfm.files[fileInfo.objectId] = *CreateNewSystemFile(fileInfo.namespaceId, filename)
+	m.Vfm.rwLock.Lock()
+	m.Vfm.files[fileInfo.ObjectId] = *CreateNewSystemFile(fileInfo.NamespaceId, filename)
+	m.Vfm.rwLock.Unlock()
 }
 
 func (m *FileManager) WriteFile(fileInfo *FileInfo, contents []byte) error {
-	fileObj, exists := m.vfm.files[fileInfo.objectId]
+	m.Vfm.rwLock.RLock()
+	fileObj, exists := m.Vfm.files[fileInfo.ObjectId]
+	m.Vfm.rwLock.RUnlock()
+
 	if !exists {
 		return ErrFileNotFound
 	}
 
-	if fileObj.namespace != fileInfo.namespaceId {
-		return ErrMismatchedNamespace(fileInfo.namespaceId, fileObj.namespace)
+	if fileObj.Namespace != fileInfo.NamespaceId {
+		return ErrMismatchedNamespace(fileInfo.NamespaceId, fileObj.Namespace)
 	}
 
-	if fileObj.filetype == DIRECTORY {
+	if fileObj.Filetype == DIRECTORY {
 		return ErrNeedFileNotDir
 	}
 
-	return m.fs.WriteFile(path.Join(m.root, fileObj.namespace, fileObj.parentDir, fileObj.relativeFilename), contents, 666)
+	return m.Fs.WriteFile(path.Join(m.Root, fileObj.Namespace, fileObj.ParentDir, fileObj.RelativeFilename), contents, 666)
 }
 
 func (m *FileManager) ReadFile(fileInfo *FileInfo) ([]byte, error) {
-	fileObj, exists := m.vfm.files[fileInfo.objectId]
+	m.Vfm.rwLock.RLock()
+	fileObj, exists := m.Vfm.files[fileInfo.ObjectId]
+	m.Vfm.rwLock.RUnlock()
 	if !exists {
 		return nil, ErrFileNotFound
 	}
 
-	if fileObj.namespace != fileInfo.namespaceId {
-		return nil, ErrMismatchedNamespace(fileInfo.namespaceId, fileObj.namespace)
+	if fileObj.Namespace != fileInfo.NamespaceId {
+		return nil, ErrMismatchedNamespace(fileInfo.NamespaceId, fileObj.Namespace)
 	}
 
-	if fileObj.filetype == DIRECTORY {
+	if fileObj.Filetype == DIRECTORY {
 		return nil, ErrNeedFileNotDir
 	}
 
-	data, err := m.fs.ReadFile(path.Join(m.root, fileInfo.namespaceId, fileObj.parentDir, fileObj.relativeFilename))
+	data, err := m.Fs.ReadFile(path.Join(m.Root, fileInfo.NamespaceId, fileObj.ParentDir, fileObj.RelativeFilename))
 	if err != nil {
+		// Here, we attempt to read a file that might not yet exist on disk.
+		// However, due to the earlier check, we can be reasonably sure that the
+		// file exsits in the virtual file system. So instead of propagating the
+		// error, we simply return an empty byte slice.
 		return make([]byte, 0), nil
 	}
 
 	return data, nil
 }
 
-//
 func (m *FileManager) DeleteFile(fileInfo *FileInfo) error {
-	fileObj, exists := m.vfm.files[fileInfo.objectId]
+	m.Vfm.rwLock.Lock()
+	defer m.Vfm.rwLock.Unlock()
+
+	fileObj, exists := m.Vfm.files[fileInfo.ObjectId]
+
 	if !exists {
 		return ErrFileNotFound
 	}
 
-	err := m.fs.Remove(path.Join(m.root, fileObj.parentDir, fileObj.relativeFilename))
+	err := m.Fs.Remove(path.Join(m.Root, fileObj.ParentDir, fileObj.RelativeFilename))
 	if err != nil {
 		return err
 	}
-	delete(m.vfm.files, fileInfo.objectId)
+	delete(m.Vfm.files, fileInfo.ObjectId)
+
 	return nil
 }
 
-func (m *FileManager) createDirectory(directory_name string, fileInfo *FileInfo) error {
-	err := m.fs.Mkdir(path.Join(m.root, fileInfo.namespaceId, directory_name), 775)
+func (m *FileManager) CreateDirectory(directory_name string, fileInfo *FileInfo) error {
+	err := m.Fs.Mkdir(path.Join(m.Root, fileInfo.NamespaceId, directory_name), 775)
 	if err != nil {
 		return fmt.Errorf("Error creating directory: %v", err)
 	}
-	m.vfm.files[fileInfo.objectId] = *CreateNewSystemDirectory(fileInfo.namespaceId, directory_name)
+
+	m.Vfm.rwLock.Lock()
+	m.Vfm.files[fileInfo.ObjectId] = *CreateNewSystemDirectory(fileInfo.NamespaceId, directory_name)
+	m.Vfm.rwLock.Unlock()
 	return nil
 }
 
-func (m *FileManager) deleteDirectory(fileInfo *FileInfo) error {
-	fileObj, exists := m.vfm.files[fileInfo.objectId]
+func (m *FileManager) DeleteDirectory(fileInfo *FileInfo) error {
+	m.Vfm.rwLock.Lock()
+	defer m.Vfm.rwLock.Unlock()
+
+	fileObj, exists := m.Vfm.files[fileInfo.ObjectId]
 	if !exists {
 		return ErrFileNotFound
 	}
 
-	err := m.fs.RemoveAll(path.Join(m.root, fileObj.parentDir, fileObj.relativeFilename))
+	if fileObj.Filetype == DIRECTORY {
+		return ErrNeedDirNotFile
+	}
+
+	err := m.Fs.RemoveAll(path.Join(m.Root, fileObj.ParentDir, fileObj.RelativeFilename))
 	if err != nil {
 		return err
 	}
-	delete(m.vfm.files, fileInfo.objectId)
+	delete(m.Vfm.files, fileInfo.ObjectId)
 	return nil
 }

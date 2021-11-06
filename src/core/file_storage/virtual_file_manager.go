@@ -3,28 +3,29 @@ package hootfs
 import (
 	"fmt"
 
+	"sync"
+
 	"github.com/google/uuid"
 )
 
-func ErrDirNotFound(directory uuid.UUID) error {
-	return fmt.Errorf("Directory with ID %s not found", directory.String())
-}
-
 type VirtualDirectory struct {
-	name    string
-	id      uuid.UUID
-	subdirs map[uuid.UUID]bool
-	files   map[uuid.UUID]bool
+	Name    string
+	Id      uuid.UUID
+	Subdirs map[uuid.UUID]bool
+	Files   map[uuid.UUID]bool
 }
 
 type VirtualFile struct {
-	name string
-	id   uuid.UUID
+	Name string
+	Id   uuid.UUID
 }
 
 type VirtualFileManager struct {
-	directories map[uuid.UUID]VirtualDirectory
-	files       map[uuid.UUID]VirtualFile
+	// The virtual file manager has little information on the namespace.
+	Directories map[uuid.UUID]VirtualDirectory
+	Files       map[uuid.UUID]VirtualFile
+
+	RWLock sync.RWMutex
 }
 
 func (m *VirtualFileManager) CreateNewFile(filename string, parent uuid.UUID) (uuid.UUID, error) {
@@ -32,8 +33,11 @@ func (m *VirtualFileManager) CreateNewFile(filename string, parent uuid.UUID) (u
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("Failed to get new UUID for virtual file: %v", err)
 	}
-	m.directories[parent].files[fileUUID] = true
-	m.files[fileUUID] = VirtualFile{name: filename, id: fileUUID}
+
+	m.RWLock.Lock()
+	m.Directories[parent].Files[fileUUID] = true
+	m.Files[fileUUID] = VirtualFile{Name: filename, Id: fileUUID}
+	m.RWLock.Unlock()
 
 	return fileUUID, nil
 }
@@ -43,80 +47,113 @@ func (m *VirtualFileManager) CreateNewDirectory(dirname string, parent uuid.UUID
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("Failed to get new UUID for virtual file: %v", err)
 	}
-	m.directories[parent].files[dirUUID] = true
-	m.directories[dirUUID] = VirtualDirectory{
-		name:    dirname,
-		id:      dirUUID,
-		subdirs: make(map[uuid.UUID]bool),
-		files:   make(map[uuid.UUID]bool)}
+
+	m.RWLock.Lock()
+	m.Directories[parent].Files[dirUUID] = true
+	m.Directories[dirUUID] = VirtualDirectory{
+		Name:    dirname,
+		Id:      dirUUID,
+		Subdirs: make(map[uuid.UUID]bool),
+		Files:   make(map[uuid.UUID]bool)}
+	m.RWLock.Unlock()
 
 	return dirUUID, nil
 }
 
-func (m *VirtualFileManager) AddNewFile(file VirtualFile, parent uuid.UUID) error {
-	dir, exists := m.directories[parent]
+func (m *VirtualFileManager) AddNewFile(file *VirtualFile, parent uuid.UUID) error {
+	dir, exists := m.Directories[parent]
 	if !exists {
 		return ErrDirNotFound(parent)
 	}
 
-	dir.files[file.id] = true
-	m.files[file.id] = file
+	m.RWLock.Lock()
+	dir.Files[file.Id] = true
+	m.Files[file.Id] = *file
+	m.RWLock.Unlock()
 
 	return nil
 }
 
-func (m *VirtualFileManager) AddNewDirectory(dir VirtualDirectory, parent uuid.UUID) error {
-	par_dir, exists := m.directories[parent]
+func (m *VirtualFileManager) AddNewDirectory(dir *VirtualDirectory, parent uuid.UUID) error {
+	par_dir, exists := m.Directories[parent]
 	if !exists {
 		return ErrDirNotFound(parent)
 	}
 
-	par_dir.subdirs[dir.id] = true
-	m.directories[dir.id] = dir
+	m.RWLock.Lock()
+	par_dir.Subdirs[dir.Id] = true
+	m.Directories[dir.Id] = *dir
+	m.RWLock.Unlock()
 
 	return nil
 }
 
 func (m *VirtualFileManager) MoveObject(file uuid.UUID, oldParent uuid.UUID, newParent uuid.UUID) error {
-	oldDir, oldExists := m.directories[oldParent]
+	m.RWLock.Lock()
+	defer m.RWLock.Unlock()
+
+	oldDir, oldExists := m.Directories[oldParent]
 	if !oldExists {
 		return ErrDirNotFound(oldParent)
 	}
-	newDir, newExists := m.directories[newParent]
+	newDir, newExists := m.Directories[newParent]
 	if !newExists {
 		return ErrDirNotFound(newParent)
 	}
 
-	_, fileExists := oldDir.files[file]
-	_, dirExists := oldDir.subdirs[file]
+	_, fileExists := oldDir.Files[file]
+	_, dirExists := oldDir.Subdirs[file]
+
+	// If both a directory and file exist with the same UUID
+	// there has been an internal error. Report it.
+	if fileExists && dirExists {
+		filename := m.Directories[file].Name
+		dirname := m.Files[file].Name
+		return ErrDuplicateIDFound(filename, dirname)
+	}
+
 	if !fileExists && !dirExists {
-		return ErrFileNotFound
-	} else if fileExists {
-		delete(oldDir.files, file)
-		newDir.files[file] = true
+		return ErrObjectNotFound
+	}
+
+	if fileExists {
+		delete(oldDir.Files, file)
+		newDir.Files[file] = true
 	} else {
-		delete(oldDir.subdirs, file)
-		newDir.subdirs[file] = true
+		delete(oldDir.Subdirs, file)
+		newDir.Subdirs[file] = true
 	}
 
 	return nil
 }
 
 func (m *VirtualFileManager) RemoveObject(file uuid.UUID, parent uuid.UUID) error {
-	dir, exists := m.directories[parent]
+	m.RWLock.Lock()
+	defer m.RWLock.Unlock()
+
+	dir, exists := m.Directories[parent]
 	if !exists {
 		return ErrDirNotFound(parent)
 	}
 
-	_, fileExists := dir.files[file]
-	_, dirExists := dir.subdirs[file]
-	if !fileExists && !dirExists {
-		// If the file doesn't exist, we ignore
-	} else if fileExists {
-		delete(dir.files, file)
-	} else {
-		delete(dir.subdirs, file)
+	_, fileExists := dir.Files[file]
+	_, dirExists := dir.Subdirs[file]
+
+	if fileExists && dirExists {
+		filename := m.Directories[file].Name
+		dirname := m.Files[file].Name
+		return ErrDuplicateIDFound(filename, dirname)
 	}
 
-	return ErrUnimplemented
+	if !fileExists && !dirExists {
+		return ErrObjectNotFound
+	}
+
+	if fileExists {
+		delete(dir.Files, file)
+	} else {
+		delete(dir.Subdirs, file)
+	}
+
+	return nil
 }
