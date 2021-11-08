@@ -6,19 +6,6 @@ package hootfs.head;
 option go_package = "github.com/hootfs/hootfs/protos";
 
 // For now file and directory IDs will be UUIDs.
-// Generic ReponseStatus message to be included in 
-// all responses. (Should be first field of all reponses.)
-
-message ResponseStatus {
-    enum StatusCode {
-        SUCCESS = 0;
-        WARNING = 1;
-        FAILURE = 2;  
-    }
-
-    StatusCode code = 1;
-    string res_message = 2;
-}
 
 // UUID message structure
 message UUID {
@@ -48,8 +35,7 @@ message ObjectInfo {
 }
 
 message GetDirectoryContentsResponse {
-    ResponseStatus status = 1;
-    repeated ObjectInfo objects = 2;
+    repeated ObjectInfo objects = 1;
 }
 
 // ------------ MakeDirectory Messages -----------------
@@ -67,10 +53,8 @@ message MakeDirectoryRequest {
 }
 
 message MakeDirectoryResponse {
-    ResponseStatus status = 1;
-    
     // The ID of the directory created.
-    UUID dir_id = 2;
+    UUID dir_id = 1;
 }
 
 // ------------ AddNewFile Messages -----------------
@@ -91,10 +75,8 @@ message AddNewFileRequest {
 }
 
 message AddNewFileResponse {
-    ResponseStatus status = 1;
-    
     // The ID of the file created.
-    UUID file_id = 2;
+    UUID file_id = 1;
 }
 
 // ------------ UpdateFileContents Messages -----------------
@@ -110,8 +92,6 @@ message UpdateFileContentsRequest {
 }
 
 message UpdateFileContentsResponse {
-    ResponseStatus status = 1;
-    
     // Can't think of anything else to
     // put in here yet.
 }
@@ -126,10 +106,8 @@ message GetFileContentsRequest {
 }
 
 message GetFileContentsResponse {
-    ResponseStatus status = 1;
-    
     // Contents of file. (If found)
-    bytes contents = 2;
+    bytes contents = 1;
 }
 
 // ------------ MoveObject Messages -----------------
@@ -148,13 +126,11 @@ message MoveObjectRequest {
 }
 
 message MoveObjectResponse {
-    ResponseStatus status = 1;
-
     // This will be the new object ID
     // Assigned to the moved object.
     // NOTE : maybe object_id won't change on move..
     // We can decide this later.
-    UUID object_id = 2;
+    UUID object_id = 1;
 }
 
 // ------------ RemoveObject Messages -----------------
@@ -167,8 +143,6 @@ message RemoveObjectRequest {
 }
 
 message RemoveObjectResponse {
-    ResponseStatus status = 1;
-
     // Potentially more to add later...
 }
 
