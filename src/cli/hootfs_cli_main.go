@@ -86,11 +86,16 @@ func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 		rpcClient.MakeDirectory(context.Background(), &req)
 	case "ls":
 		if len(args) != 2 {
-			fmt.Fprintf(os.Stderr, "usage: ls [dir]")
+			fmt.Fprintln(os.Stderr, "usage: ls [dir]")
 		}
 		dirid, _ := uuid.Parse(args[1])
 		req := head.GetDirectoryContentsRequest{DirId: &head.UUID{Value: dirid[:]}}
-		rpcClient.GetDirectoryContents(context.Background(), &req)
+		resp, _ := rpcClient.GetDirectoryContents(context.Background(), &req)
+		respobjects := resp.Objects
+		for _, obj := range respobjects {
+			respobjectuuid, _ := uuid.FromBytes(obj.ObjectId.Value)
+			fmt.Printf("%s (id=%s)\n", obj.ObjectName, respobjectuuid.String())
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "no such command %s\n", args[0])
 	}
