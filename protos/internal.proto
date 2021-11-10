@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+import "head.proto";
+
+package hootfs.internal;
+
+option go_package = "github.com/hootfs/hootfs/protos";
+
+
+service InternalService {
+    // Procedure calls from one cluster node to another.
+
+    // ----------- Calls with just virtual effects -----------
+
+    rpc VirMakeDirectory(VirMakeDirectoryRequest) 
+        returns (VirMakeDirectoryResponse);
+    
+    rpc VirAddNewFile(VirAddNewFileRequest) 
+        returns (VirAddNewFileResponse);
+
+    rpc VirUpdateFileSystems(VirUpdateFileSystemsRequest)
+        returns (VirUpdateFileSystemsResponse);
+
+    rpc VirMoveObject(VirMoveObjectRequest) 
+        returns (VirMoveObjectResponse);
+    
+    rpc VirRemoveObject(VirRemoveObjectRequest) 
+        returns (VirRemoveObjectResponse);
+    
+    // ----------- Calls with physical effects -----------
+
+    rpc PhysWriteFileContents(PhysWriteFileContentsRequest)
+        returns (PhysWriteFileContentsResponse);
+
+    rpc PhysRemoveObject(PhysRemoveObjectRequest)
+        returns (PhysRemoveObjectResponse);
+
+}

@@ -28,6 +28,13 @@ type VirtualFileManager struct {
 	RWLock sync.RWMutex
 }
 
+func NewVirtualFileManager() *VirtualFileManager {
+	return &VirtualFileManager{
+		Directories: make(map[uuid.UUID]VirtualDirectory),
+		Files:       make(map[uuid.UUID]VirtualFile),
+	}
+}
+
 func (m *VirtualFileManager) CreateNewFile(filename string, parent uuid.UUID) (uuid.UUID, error) {
 	fileUUID, err := uuid.NewUUID()
 	if err != nil {
