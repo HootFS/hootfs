@@ -128,7 +128,7 @@ func TestDeleteFileWorks(t *testing.T) {
 	manager.Fs = fakeFS{}
 	manager.CreateDirectory("dir", &file_info)
 
-	_, err := manager.ReadFile(&file_info)
+	err := manager.DeleteFile(&file_info)
 	if err != ErrNeedFileNotDir {
 		t.Fatalf("Managed to read file contents of non-file")
 	}
