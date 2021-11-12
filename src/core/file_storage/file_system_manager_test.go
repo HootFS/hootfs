@@ -99,11 +99,121 @@ func TestReadFileFailsIfFileDNE(t *testing.T) {
 	manager.Fs = fakeFS{}
 
 	_, err := manager.ReadFile(&file_info)
-	if err == nil {
-		t.Fatalf("Managed to read non-existing file")
-	}
-
 	if err != ErrFileNotFound {
 		t.Fatalf("Managed to find non-existing file")
+	}
+}
+
+func TestReadFileFailsIfFiletypeIsDirectory(t *testing.T) {
+	manager := NewFileSystemManager("fs_root")
+	file_id := uuid.MustParse(strings.Repeat("1", 32))
+	test_ns := "test_namespace"
+
+	file_info := FileInfo{NamespaceId: test_ns, ObjectId: file_id}
+	manager.Fs = fakeFS{}
+	manager.CreateDirectory("dir", &file_info)
+
+	_, err := manager.ReadFile(&file_info)
+	if err != ErrNeedFileNotDir {
+		t.Fatalf("Managed to read file contents of non-file")
+	}
+}
+
+func TestDeleteFileWorks(t *testing.T) {
+	manager := NewFileSystemManager("fs_root")
+	file_id := uuid.MustParse(strings.Repeat("1", 32))
+	test_ns := "test_namespace"
+
+	file_info := FileInfo{NamespaceId: test_ns, ObjectId: file_id}
+	manager.Fs = fakeFS{}
+	manager.CreateDirectory("dir", &file_info)
+
+	err := manager.DeleteFile(&file_info)
+	if err != ErrNeedFileNotDir {
+		t.Fatalf("Managed to read file contents of non-file")
+	}
+}
+
+func TestDeleteFileFailsIfFileDne(t *testing.T) {
+	manager := NewFileSystemManager("fs_root")
+	file_id := uuid.MustParse(strings.Repeat("1", 32))
+	test_ns := "test_namespace"
+
+	file_info := FileInfo{NamespaceId: test_ns, ObjectId: file_id}
+	manager.Fs = fakeFS{}
+	manager.CreateFile("file", &file_info)
+
+	err := manager.DeleteFile(&file_info)
+	if err != nil {
+		t.Fatalf("Failed to delete directory: %v", err)
+	}
+}
+
+func TestDeleteFileFailsIfCalledOnDirectory(t *testing.T) {
+	manager := NewFileSystemManager("fs_root")
+	file_id := uuid.MustParse(strings.Repeat("1", 32))
+	test_ns := "test_namespace"
+
+	file_info := FileInfo{NamespaceId: test_ns, ObjectId: file_id}
+	manager.Fs = fakeFS{}
+	manager.CreateDirectory("dir", &file_info)
+
+	err := manager.DeleteFile(&file_info)
+	if err != ErrNeedFileNotDir {
+		t.Fatalf("Managed to perform file deletion on directory")
+	}
+}
+
+func TestCreateDirectoryWorks(t *testing.T) {
+	manager := NewFileSystemManager("fs_root")
+	file_id := uuid.MustParse(strings.Repeat("1", 32))
+	test_ns := "test_namespace"
+
+	file_info := FileInfo{NamespaceId: test_ns, ObjectId: file_id}
+	manager.Fs = fakeFS{}
+	if err := manager.CreateDirectory("dir", &file_info); err != nil {
+		t.Fatalf("Error creating directory")
+	}
+}
+
+func TestDeleteDirectoryWorks(t *testing.T) {
+	manager := NewFileSystemManager("fs_root")
+	file_id := uuid.MustParse(strings.Repeat("1", 32))
+	test_ns := "test_namespace"
+
+	file_info := FileInfo{NamespaceId: test_ns, ObjectId: file_id}
+	manager.Fs = fakeFS{}
+	manager.CreateDirectory("dir", &file_info)
+
+	err := manager.DeleteDirectory(&file_info)
+	if err != nil {
+		t.Fatalf("Failed to delete virtual directory: %v", err)
+	}
+}
+
+func TestDeleteDirectoryFailsIfDirectoryNotFound(t *testing.T) {
+	manager := NewFileSystemManager("fs_root")
+	file_id := uuid.MustParse(strings.Repeat("1", 32))
+	test_ns := "test_namespace"
+
+	file_info := FileInfo{NamespaceId: test_ns, ObjectId: file_id}
+	manager.Fs = fakeFS{}
+
+	if err := manager.DeleteDirectory(&file_info); err != ErrFileNotFound {
+		t.Fatalf("Expected to receive a file-not-found error for non-existent directory.")
+	}
+}
+
+func TestDeleteDirectoryFailsIfCalledOnFile(t *testing.T) {
+	manager := NewFileSystemManager("fs_root")
+	file_id := uuid.MustParse(strings.Repeat("1", 32))
+	test_ns := "test_namespace"
+
+	file_info := FileInfo{NamespaceId: test_ns, ObjectId: file_id}
+	manager.Fs = fakeFS{}
+	manager.CreateFile("file", &file_info)
+
+	if err := manager.DeleteDirectory(&file_info); err != ErrNeedDirNotFile {
+		t.Fatalf("Performed directory deletion on file")
 	}
 }
