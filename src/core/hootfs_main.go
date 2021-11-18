@@ -4,7 +4,6 @@ import (
 	"flag"
 	"log"
 
-	"github.com/google/uuid"
 	hootfs "github.com/hootfs/hootfs/src/core/file_storage"
 	core "github.com/hootfs/hootfs/src/core/hootfs"
 )
@@ -20,10 +19,7 @@ func main() {
 	server := core.NewHootFsServer(
 		discover_hostname,
 		hootfs.NewFileSystemManager(hootfs_root),
-		&hootfs.VirtualFileManager{
-			Directories: make(map[uuid.UUID]hootfs.VirtualDirectory),
-			Files:       make(map[uuid.UUID]hootfs.VirtualFile),
-		})
+		hootfs.NewVirtualFileManager())
 	if err := server.StartServer(); err != nil {
 		log.Fatalf("Server initialization failed: %v", err)
 	}
