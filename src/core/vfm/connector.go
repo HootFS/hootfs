@@ -1,4 +1,4 @@
-package metastore
+package vfm
 
 import (
 	"context"
