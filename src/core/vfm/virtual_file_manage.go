@@ -1,29 +1,5 @@
 package vfm
 
-/*
-	First we can discuss overall vfm abstraction...
-	Then we can actually build the client to the metastore.
-
-	So there will be users.
-	users will have access to files and folders in their namespace?
-	What is a namespace???
-
-	A namespace should be a shareable collection of files...
-	Every namespace will have a root folder?
-
-	How do we know what folders belong to what namespaces???
-	What if we want to share individual folders with other users??
-	Kinda like sub namespaces...
-
-	What should the desired behavoir be????
-
-	If I declare a directory a namespace.
-	All subdirectories and files of said directory will belong to the
-	same namespace.
-
-	A namespace is given to a directory or a file.
-*/
-
 // TODO, change this to whichever UUID implementaton we use.
 type VFM_UUID struct{}
 
@@ -33,6 +9,49 @@ type User_ID struct{}
 // TODO, change this to whichever Machine ID implementation we use.
 type Machine_ID struct{}
 
+// VFM_Obj_Type will classify objects as either files or directorys.
+type VFM_Object_Type int
+
+const (
+	VFM_File_Type VFM_Object_Type = iota // Placeholder type.
+	VFM_Dir_Type
+)
+
+type VFM_Object interface {
+	GetID() VFM_UUID
+	GetParentID() VFM_UUID
+	GetName() string
+	GetObjectType() VFM_Object_Type
+	GetContents() ([]VFM_UUID, error)
+}
+
+type VFM_Header struct {
+	id        VFM_UUID
+	parent_id VFM_UUID
+	name      string
+}
+
+func (h VFM_Header) GetID() VFM_UUID {
+	return h.id
+}
+
+func (h VFM_Header) GetParentID() VFM_UUID {
+	return h.parent_id
+}
+
+func (h VFM_Header) GetName() string {
+	return h.name
+}
+
+type VFM_File struct {
+	VFM_Header
+}
+
+type VFM_Directory struct {
+	VFM_Header
+	contents
+}
+
 // The virtual file manager will deal with all meta data about the
 // file system structure. I.e. everything up until actually storing
 // objects on machines.
@@ -40,6 +59,8 @@ type Machine_ID struct{}
 // I.e. the VFM will hold data about which machines a specific file
 // resides in.
 type VirtualFileManager interface {
+
+	// Admin Focused Functions -------------------------------------------
 
 	// Add a new machine to the system.
 	//		new_machine	- The ID of the machine to add.
@@ -57,10 +78,21 @@ type VirtualFileManager interface {
 	//		old_user 	- The ID of the user to remove.
 	DeleteUser(old_user User_ID) error
 
+	// Get all the machines a file resides on.
+	//		file_id		- The ID of the file in question.
+	GetFileLocations(file_id VFM_UUID) ([]Machine_ID, error)
+
+	// Set the machines a file resides on.
+	//		file_id		- The ID of the file in question.
+	//		locs		- The new slice of locations.
+	SetFileLocations(file_id VFM_UUID, locs []Machine_ID) error
+
+	// User Focused Functions ----------------------------------------------
+
 	// This simply creates a new Namespace.
 	// 		name    - the name of the Namespace.
-	//		creator - the ID of the user creating the Namespace.
-	CreateNamespace(name string, creator User_ID) (VFM_UUID, error)
+	//		member - the ID of the user creating the Namespace.
+	CreateNamespace(name string, member User_ID) (VFM_UUID, error)
 
 	// Delete a Namespace.
 	// NOTE, this functionality brings up garabe collection relating
