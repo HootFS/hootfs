@@ -1,5 +1,7 @@
 package vfm
 
+import "fmt"
+
 // TODO, change this to whichever UUID implementaton we use.
 type VFM_UUID struct{}
 
@@ -17,18 +19,27 @@ const (
 	VFM_Dir_Type
 )
 
+// A VFM_Object is the Go representation of a file or folder's
+// metadata.
 type VFM_Object interface {
 	GetID() VFM_UUID
-	GetParentID() VFM_UUID
+	GetParentID() (VFM_UUID, error)
 	GetName() string
+
+	// NOTE, the details of an object will usually be requested
+	// by a user. This call should not return the IDs of every namespace
+	// this Object belongs to. SOMETHING WE NEED TO THINK ABOUT HERE!!!!!
+	GetNamespaces() []VFM_UUID
+
 	GetObjectType() VFM_Object_Type
-	GetContents() ([]VFM_UUID, error)
+	GetSubObjects() ([]VFM_UUID, error)
 }
 
 type VFM_Header struct {
-	id        VFM_UUID
-	parent_id VFM_UUID
-	name      string
+	id         VFM_UUID
+	parent_id  VFM_UUID
+	name       string
+	namespaces []VFM_UUID
 }
 
 func (h VFM_Header) GetID() VFM_UUID {
@@ -43,13 +54,33 @@ func (h VFM_Header) GetName() string {
 	return h.name
 }
 
+func (h VFM_Header) GetNamespaces() []VFM_UUID {
+	return h.namespaces
+}
+
 type VFM_File struct {
 	VFM_Header
 }
 
+func (f VFM_File) GetObjectType() VFM_Object_Type {
+	return VFM_File_Type
+}
+
+func (f VFM_File) GetSubObjects() ([]VFM_UUID, error) {
+	return nil, fmt.Errorf("Files do not have sub objects! (%s)", f.name)
+}
+
 type VFM_Directory struct {
 	VFM_Header
-	contents
+	sub_objects []VFM_UUID
+}
+
+func (f VFM_Directory) GetObjectType() VFM_Object_Type {
+	return VFM_Dir_Type
+}
+
+func (f VFM_Directory) GetSubObjects() ([]VFM_UUID, error) {
+	return f.sub_objects, nil
 }
 
 // The virtual file manager will deal with all meta data about the
@@ -118,9 +149,14 @@ type VirtualFileManager interface {
 	//		axed	- The user being removed.
 	RemoveUserFromNamespace(ns_id VFM_UUID, axer User_ID, axed User_ID) error
 
+	// NOTE, a "Root Object" of a namespace N is a directory or file which
+	// either (a) has no parent directory, or (b) has a parent directory which
+	// does not belong to namespace N.
+
 	// Adds an object to a Namespace. (Either a folder or file)
-	// When a folder is in a Namespace, all of its subcontents are in the
-	// Namespace as well.
+	// This file cannot already belong to the given namespace.
+	// If added successfully, the added object will be a Root object of
+	// the namespace.
 	//		ns_id	- The Namespace to add to.
 	//		member	- The user making the request.
 	//		object	- The object to add to the namespace.
@@ -137,24 +173,25 @@ type VirtualFileManager interface {
 	RemoveObjectFromNamespace(ns_id VFM_UUID, member User_ID,
 		object VFM_UUID) error
 
-	// NOTE, a "Root Object" of a Namespace is a directory or file of a
-	// Namespace which has no parent directory.
-	// The creation of Root Objects is required to create the initial files
-	// of the file system.
-
-	// Create a root directory in a Namespace.
+	// Create a freestanding Directory in a namespace.
+	// I.e. a directory which belongs to no parent directory.
+	// By definition, this will be a root object of the namespace.
 	//		ns_id	- The Namespace to add to.
 	//		member	- The user making the request.
 	//		name	- The name of the new directory.
-	CreateRootDirInNamespace(ns_id VFM_UUID, member User_ID,
+	CreateFreeDirInNamespace(ns_id VFM_UUID, member User_ID,
 		name string) (VFM_UUID, error)
 
-	// Create a root file in a Namespace.
+	// Create a freestanding file in a namespace.
+	// This file will belong to no parent directory.
+	// Again, this will be a root object of the namespace.
 	//		ns_id	- The Namespace to add to.
 	//		member	- The user making the request.
 	//		name	- The name of the new file.
-	CreateRootFileInNamespace(ns_id VFM_UUID, member User_ID,
+	CreateFreeFileInNamespace(ns_id VFM_UUID, member User_ID,
 		name string) (VFM_UUID, error)
+
+	GetNamespaceRoots(ns_id VFM_UUID, member User_ID) []VFM_UUID
 
 	// NOTE, for the next two functions...
 	// Creating a directory or file will add said object to the
@@ -179,4 +216,14 @@ type VirtualFileManager interface {
 	//		obj_id	- The ID of the object to remove (file or folder)
 	//		member	- The user making the request.
 	DeleteObject(obj_id VFM_UUID, member User_ID) error
+
+	// Get the details of a specific object in the file system.
+	//		obj_id	- The ID of the object in question.
+	//		member 	- The user making the request.
+	GetObjectDetails(obj_id VFM_UUID, member User_ID) (VFM_Object, error)
+
+	// Get the contents of a directory.
+	//		dir_id	- The ID of the directory in question.
+	//		member	- The user making the request.
+	GetDirectoryContents(dir_id VFM_UUID, member User_ID) ([]VFM_Object, error)
 }
