@@ -2,8 +2,11 @@ package vfm
 
 import "fmt"
 
-// TODO, change this to whichever UUID implementaton we use.
-type VFM_UUID struct{}
+// This will be the UUID used for all VFM Objects and Namespaces.
+type VFM_UUID [12]byte
+
+// This represents the Nil VFM UUID. (All 0s)
+var Nil_VFM_UUID [12]byte
 
 // TODO, change this to whichever user ID implementation we use.
 type User_ID struct{}
@@ -19,20 +22,50 @@ const (
 	VFM_Dir_Type
 )
 
+// This struct is a very condensed way of representing
+// a VFM Object. It will be used when the contents of a
+// directory are requested by a user.
+type VFM_Object_Stub struct {
+	Id   VFM_UUID
+	Name string
+
+	// NOTE, This stub does not contain a parentID
+	// field. We are assuming the parentID of this object
+	// will already be known by the user.
+	// Similarly, we are assuming the Namespaces of the parent
+	// will also be known by the user. This field should only
+	// list Namespaces which are not known to the user.
+	// I.e. Namespaces this object belongs to, but its parent
+	// does not.
+	Namespaces []VFM_UUID
+
+	Type VFM_Object_Type
+}
+
 // A VFM_Object is the Go representation of a file or folder's
-// metadata.
+// metadata. Forseeably, this will be something which is returned to
+// a user. Thus, the information held will be specific to the user
+// requesting the information.
+// Most notably, Object and Namespace IDs given in this object
+// will only be those which the requesting user has access to.
 type VFM_Object interface {
 	GetID() VFM_UUID
+
+	// This Object may not have a parent.
+	// or... Its parent may not be accesibly by the
+	// requesting user. In these cases, an error is
+	// returned here.
 	GetParentID() (VFM_UUID, error)
+
 	GetName() string
 
 	// NOTE, the details of an object will usually be requested
 	// by a user. This call should not return the IDs of every namespace
-	// this Object belongs to. SOMETHING WE NEED TO THINK ABOUT HERE!!!!!
+	// this Object belongs to.
 	GetNamespaces() []VFM_UUID
 
 	GetObjectType() VFM_Object_Type
-	GetSubObjects() ([]VFM_UUID, error)
+	GetSubObjects() ([]VFM_Object_Stub, error)
 }
 
 type VFM_Header struct {
@@ -46,8 +79,14 @@ func (h VFM_Header) GetID() VFM_UUID {
 	return h.id
 }
 
-func (h VFM_Header) GetParentID() VFM_UUID {
-	return h.parent_id
+func (h VFM_Header) GetParentID() (VFM_UUID, error) {
+	if h.parent_id == Nil_VFM_UUID {
+		return Nil_VFM_UUID,
+			fmt.Errorf(
+				"Parent is inaccessbile or does not exist! (%s)\n", h.name)
+	}
+
+	return h.parent_id, nil
 }
 
 func (h VFM_Header) GetName() string {
@@ -66,20 +105,20 @@ func (f VFM_File) GetObjectType() VFM_Object_Type {
 	return VFM_File_Type
 }
 
-func (f VFM_File) GetSubObjects() ([]VFM_UUID, error) {
-	return nil, fmt.Errorf("Files do not have sub objects! (%s)", f.name)
+func (f VFM_File) GetSubObjects() ([]VFM_Object_Stub, error) {
+	return nil, fmt.Errorf("Files do not have sub objects! (%s)\n", f.name)
 }
 
 type VFM_Directory struct {
 	VFM_Header
-	sub_objects []VFM_UUID
+	sub_objects []VFM_Object_Stub
 }
 
 func (f VFM_Directory) GetObjectType() VFM_Object_Type {
 	return VFM_Dir_Type
 }
 
-func (f VFM_Directory) GetSubObjects() ([]VFM_UUID, error) {
+func (f VFM_Directory) GetSubObjects() ([]VFM_Object_Stub, error) {
 	return f.sub_objects, nil
 }
 
@@ -126,7 +165,7 @@ type VirtualFileManager interface {
 	CreateNamespace(name string, member User_ID) (VFM_UUID, error)
 
 	// Delete a Namespace.
-	// NOTE, this functionality brings up garabe collection relating
+	// NOTE, this functionality brings up garbage collection relating
 	// issues. For example, when a file no longer belongs to any
 	// Namespaces, should it be deleted from the cluster?
 	//		ns_id	- The Namespace in question.
@@ -191,7 +230,10 @@ type VirtualFileManager interface {
 	CreateFreeFileInNamespace(ns_id VFM_UUID, member User_ID,
 		name string) (VFM_UUID, error)
 
-	GetNamespaceRoots(ns_id VFM_UUID, member User_ID) []VFM_UUID
+	// Get the IDs of evern root object in a given name space.
+	// 		ns_id	- The Namespace in question.
+	//		member	- The user making the request.
+	GetNamespaceRoots(ns_id VFM_UUID, member User_ID) ([]VFM_UUID, error)
 
 	// NOTE, for the next two functions...
 	// Creating a directory or file will add said object to the
@@ -221,9 +263,4 @@ type VirtualFileManager interface {
 	//		obj_id	- The ID of the object in question.
 	//		member 	- The user making the request.
 	GetObjectDetails(obj_id VFM_UUID, member User_ID) (VFM_Object, error)
-
-	// Get the contents of a directory.
-	//		dir_id	- The ID of the directory in question.
-	//		member	- The user making the request.
-	GetDirectoryContents(dir_id VFM_UUID, member User_ID) ([]VFM_Object, error)
 }
