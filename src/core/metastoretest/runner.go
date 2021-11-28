@@ -1,12 +1,10 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/hootfs/hootfs/src/core/metastore"
-	"go.mongodb.org/mongo-driver/bson"
+	"github.com/hootfs/hootfs/src/core/vfm"
 )
 
 type Person struct {
@@ -15,7 +13,7 @@ type Person struct {
 }
 
 func main() {
-	ms, err := metastore.NewMetaStore()
+	ms, err := vfm.NewMetaStore("Test1")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -26,35 +24,11 @@ func main() {
 		}
 	}()
 
-	collection := ms.TestCollection("people")
-
-	// res, err := collection.InsertOne(context.TODO(),
-	// 	bson.M{"Name": "Sal", "Siblings": bson.A{"Joel", "Sam"}},
-	// )
-
-	// if err != nil {
-	// 	log.Fatal(res)
-	// }
-
-	var result Person
-
-	filter := bson.D{
-		bson.E{Key: "Name", Value: "Sal"},
-	}
-
-	err = collection.FindOne(context.TODO(), filter).Decode(&result)
+	err = ms.DeleteMachine(130)
 
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf(err.Error())
+	} else {
+		fmt.Printf("Success!")
 	}
-
-	// This worked BOIIIII !!!!!!!
-	fmt.Println("Found : ", result.Name, " ", result.Siblings)
-
-	// bob := Person{
-	// 	Name: "Bob",
-	// 	Age:  22,
-	// }
-
-	// fmt.Println("Result : ", res)
 }

@@ -2,47 +2,14 @@ package vfm
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const MetaStoreURI = "mongodb+srv://caa8:hootfs@hootfsmetadata.qffjw.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
-
-// NOTE, below lies the schema of the MongoDB metastore.
-//
-// Machines Collection:
-// Machine_Object:
-//  _id	 		Machine_ID
-//
-// Users Collection:
-// User_Object:
-//	_id 		User_ID (string)
-//  // .. Potentially more info here if needed.
-//
-// Namespaces Collection:
-// Namespace_Object:
-//  _id         Namespace_UUID
-//  RootObjects []VO_UUID
-//  Users		[]User_ID
-//
-// Virtual_Objects collection:
-// Virtual_Object:
-//  _id         VO_UUID
-//  ParentID    VO_UUID
-//
-//  //
-//	ClosestRoot VO_UUID
-//	Name        string
-//
-//  // A Namespace ID N will be held in this slice if and
-//  // only if this object is a root object of N.
-//	Namespaces  []Namespace_UUID
-//
-//	IsDir       bool
-//  Machines    []Machine_ID  (exists only if file)
-//	SubObjects  []VO_UUID	  (exists only if directory)
+const MetaStoreURI = "mongodb+srv://caa8:comp413@cluster0.jmblg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
 
 const (
 	C_Machines        = "Machines"
@@ -50,6 +17,58 @@ const (
 	C_Namespaces      = "Namespaces"
 	C_Virtual_Objects = "Virtual_Objects"
 )
+
+// NOTE, the below four structs mirror how data will be
+// stored in the metastore.
+// Each type of struct will have its own collection
+// for being stored in. These are seen above with all
+// collection names starting with the prefix C_.
+
+type Machine struct {
+	MID Machine_ID
+
+	// Potentially more here...
+}
+
+type User struct {
+	UID User_ID
+
+	// Potentially more here...
+}
+
+type Namespace struct {
+	NID         Namespace_ID
+	RootObjects []VO_ID
+
+	// Users which have access to this Namespace.
+	Users []User_ID
+}
+
+type VObject struct {
+	VOID     VO_ID
+	ParentID VO_ID
+
+	// This will be this object's closest parent which is a root of a
+	// namespace. If this object has no parent, this will be the NULL
+	// VO_ID.
+	ClosestRoot VO_ID
+
+	Name string
+
+	// A namespace N will be in this slice if and only if this object
+	// is a root object of N.
+	namespaces []Namespace_ID
+
+	IsDir bool
+
+	// If this object is a file, this slice will exist, and will
+	// contain all machines this file resides on.
+	Machines []Machine_ID
+
+	// If this object is a directory, this slice will exist, and
+	// will hold all objects contained in this directory.
+	SubObjects []VO_ID
+}
 
 type MetaStore struct {
 	client *mongo.Client
@@ -76,16 +95,45 @@ func (ms *MetaStore) Disconnect() error {
 	return ms.client.Disconnect(context.TODO())
 }
 
-var NotImplemented = fmt.Errorf("Function Not Implemented!")
+var (
+	ErrNotImplemented      = errors.New("Not Implemented!")
+	ErrMachineExists       = errors.New("Machine Already Exists!")
+	ErrMachineDoesNotExist = errors.New("Machine Does Not Exist!")
+)
 
 func (ms *MetaStore) CreateMachine(new_machine Machine_ID) error {
+	filter := bson.D{{"mid", new_machine}}
+
 	// Must make sure this is not a repeat machine ID.
+	match := ms.DB.Collection(C_Machines).FindOne(context.TODO(), filter)
 
-	// If not, we will insert into the collection.
+	if match.Err() == nil {
+		return ErrMachineExists
+	}
 
-	return NotImplemented
+	// Error sending request.
+	if match.Err() != mongo.ErrNoDocuments {
+		return match.Err()
+	}
+
+	_, err := ms.DB.Collection(C_Machines).InsertOne(context.TODO(),
+		Machine{MID: new_machine})
+
+	return err
 }
 
 func (ms *MetaStore) DeleteMachine(old_machine Machine_ID) error {
-	return NotImplemented
+	// First we must make sure the machine actually exists.
+	filter := bson.D{{"mid", old_machine}}
+	res, err := ms.DB.Collection(C_Machines).DeleteOne(context.TODO(), filter)
+
+	// TODO ----------------------------
+	// Must make sure to delete this machine number from all File Objects!
+	// ---------------------------------
+
+	if res.DeletedCount == 0 {
+		return ErrMachineDoesNotExist
+	}
+
+	return err
 }
