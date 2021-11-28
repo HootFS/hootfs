@@ -2,17 +2,21 @@ package vfm
 
 import "fmt"
 
-// This will be the UUID used for all VFM Objects and Namespaces.
-type VFM_UUID [12]byte
+// This will be the UUID used for all VFM Objects.
+type VO_UUID [12]byte
 
 // This represents the Nil VFM UUID. (All 0s)
-var Nil_VFM_UUID [12]byte
+var Nil_VO_UUID [12]byte
 
-// TODO, change this to whichever user ID implementation we use.
-type User_ID struct{}
+// This will be the UUID used for Namespaces.
+type Namespace_UUID [12]byte
 
-// TODO, change this to whichever Machine ID implementation we use.
-type Machine_ID struct{}
+// User ID will probably be a username/email. (Consult Auth0 for this)
+type User_ID string
+
+// The machine IDs will not be created by the VFM, thus an integer is
+// probably the best option.
+type Machine_ID uint64
 
 // VFM_Obj_Type will classify objects as either files or directorys.
 type VFM_Object_Type int
@@ -26,7 +30,7 @@ const (
 // a VFM Object. It will be used when the contents of a
 // directory are requested by a user.
 type VFM_Object_Stub struct {
-	Id   VFM_UUID
+	Id   VO_UUID
 	Name string
 
 	// NOTE, This stub does not contain a parentID
@@ -37,7 +41,7 @@ type VFM_Object_Stub struct {
 	// list Namespaces which are not known to the user.
 	// I.e. Namespaces this object belongs to, but its parent
 	// does not.
-	Namespaces []VFM_UUID
+	Namespaces []Namespace_UUID
 
 	Type VFM_Object_Type
 }
@@ -49,39 +53,39 @@ type VFM_Object_Stub struct {
 // Most notably, Object and Namespace IDs given in this object
 // will only be those which the requesting user has access to.
 type VFM_Object interface {
-	GetID() VFM_UUID
+	GetID() VO_UUID
 
 	// This Object may not have a parent.
 	// or... Its parent may not be accesibly by the
 	// requesting user. In these cases, an error is
 	// returned here.
-	GetParentID() (VFM_UUID, error)
+	GetParentID() (VO_UUID, error)
 
 	GetName() string
 
 	// NOTE, the details of an object will usually be requested
 	// by a user. This call should not return the IDs of every namespace
 	// this Object belongs to.
-	GetNamespaces() []VFM_UUID
+	GetNamespaces() []Namespace_UUID
 
 	GetObjectType() VFM_Object_Type
 	GetSubObjects() ([]VFM_Object_Stub, error)
 }
 
 type VFM_Header struct {
-	id         VFM_UUID
-	parent_id  VFM_UUID
+	id         VO_UUID
+	parent_id  VO_UUID
 	name       string
-	namespaces []VFM_UUID
+	namespaces []Namespace_UUID
 }
 
-func (h VFM_Header) GetID() VFM_UUID {
+func (h VFM_Header) GetID() VO_UUID {
 	return h.id
 }
 
-func (h VFM_Header) GetParentID() (VFM_UUID, error) {
-	if h.parent_id == Nil_VFM_UUID {
-		return Nil_VFM_UUID,
+func (h VFM_Header) GetParentID() (VO_UUID, error) {
+	if h.parent_id == Nil_VO_UUID {
+		return Nil_VO_UUID,
 			fmt.Errorf(
 				"Parent is inaccessbile or does not exist! (%s)\n", h.name)
 	}
@@ -93,7 +97,7 @@ func (h VFM_Header) GetName() string {
 	return h.name
 }
 
-func (h VFM_Header) GetNamespaces() []VFM_UUID {
+func (h VFM_Header) GetNamespaces() []Namespace_UUID {
 	return h.namespaces
 }
 
@@ -150,19 +154,19 @@ type VirtualFileManager interface {
 
 	// Get all the machines a file resides on.
 	//		file_id		- The ID of the file in question.
-	GetFileLocations(file_id VFM_UUID) ([]Machine_ID, error)
+	GetFileLocations(file_id VO_UUID) ([]Machine_ID, error)
 
 	// Set the machines a file resides on.
 	//		file_id		- The ID of the file in question.
 	//		locs		- The new slice of locations.
-	SetFileLocations(file_id VFM_UUID, locs []Machine_ID) error
+	SetFileLocations(file_id VO_UUID, locs []Machine_ID) error
 
 	// User Focused Functions ----------------------------------------------
 
 	// This simply creates a new Namespace.
 	// 		name    - the name of the Namespace.
 	//		member - the ID of the user creating the Namespace.
-	CreateNamespace(name string, member User_ID) (VFM_UUID, error)
+	CreateNamespace(name string, member User_ID) (Namespace_UUID, error)
 
 	// Delete a Namespace.
 	// NOTE, this functionality brings up garbage collection relating
@@ -170,7 +174,7 @@ type VirtualFileManager interface {
 	// Namespaces, should it be deleted from the cluster?
 	//		ns_id	- The Namespace in question.
 	//		member	- The user deleting the Namespace.
-	DeleteNamespace(ns_id VFM_UUID, member User_ID) error
+	DeleteNamespace(ns_id Namespace_UUID, member User_ID) error
 
 	// Adds a member to a Namespace. One a user is the member of a Namespace,
 	// he or she has access to all objects inside the Namespace. He or she
@@ -180,13 +184,15 @@ type VirtualFileManager interface {
 	// 					  a member of the Namespace or else an error will
 	//                    be returned.
 	//		recruit		- The user to add to the Namespace.
-	AddUserToNamespace(ns_id VFM_UUID, recruiter User_ID, recruit User_ID) error
+	AddUserToNamespace(ns_id Namespace_UUID,
+		recruiter User_ID, recruit User_ID) error
 
 	// Removes a user from a Namespace.
 	//		ns_id	- The Namespace in question.
 	//		axer	- The user performing the remove.
 	//		axed	- The user being removed.
-	RemoveUserFromNamespace(ns_id VFM_UUID, axer User_ID, axed User_ID) error
+	RemoveUserFromNamespace(ns_id Namespace_UUID,
+		axer User_ID, axed User_ID) error
 
 	// NOTE, a "Root Object" of a namespace N is a directory or file which
 	// either (a) has no parent directory, or (b) has a parent directory which
@@ -200,7 +206,8 @@ type VirtualFileManager interface {
 	//		member	- The user making the request.
 	//		object	- The object to add to the namespace.
 	//				  This object cannot already belong to the Namespace.
-	AddObjectToNamespace(ns_id VFM_UUID, member User_ID, object VFM_UUID) error
+	AddObjectToNamespace(ns_id Namespace_UUID,
+		member User_ID, object VO_UUID) error
 
 	// Remove an object from a Namespace. Removing a folder from a Namespace
 	// will remove all of its contents from the Namespace as well.
@@ -209,8 +216,8 @@ type VirtualFileManager interface {
 	//		ns_id	- The Namespace to add to.
 	//		member	- The user making the request.
 	//		object	- The object to remove from the namespace.
-	RemoveObjectFromNamespace(ns_id VFM_UUID, member User_ID,
-		object VFM_UUID) error
+	RemoveObjectFromNamespace(ns_id Namespace_UUID, member User_ID,
+		object VO_UUID) error
 
 	// Create a freestanding Directory in a namespace.
 	// I.e. a directory which belongs to no parent directory.
@@ -218,8 +225,8 @@ type VirtualFileManager interface {
 	//		ns_id	- The Namespace to add to.
 	//		member	- The user making the request.
 	//		name	- The name of the new directory.
-	CreateFreeDirInNamespace(ns_id VFM_UUID, member User_ID,
-		name string) (VFM_UUID, error)
+	CreateFreeDirInNamespace(ns_id Namespace_UUID, member User_ID,
+		name string) (VO_UUID, error)
 
 	// Create a freestanding file in a namespace.
 	// This file will belong to no parent directory.
@@ -227,13 +234,13 @@ type VirtualFileManager interface {
 	//		ns_id	- The Namespace to add to.
 	//		member	- The user making the request.
 	//		name	- The name of the new file.
-	CreateFreeFileInNamespace(ns_id VFM_UUID, member User_ID,
-		name string) (VFM_UUID, error)
+	CreateFreeFileInNamespace(ns_id Namespace_UUID, member User_ID,
+		name string) (VO_UUID, error)
 
-	// Get the IDs of evern root object in a given name space.
+	// Get the IDs of every root object in a given name space.
 	// 		ns_id	- The Namespace in question.
 	//		member	- The user making the request.
-	GetNamespaceRoots(ns_id VFM_UUID, member User_ID) ([]VFM_UUID, error)
+	GetNamespaceRoots(ns_id Namespace_UUID, member User_ID) ([]VO_UUID, error)
 
 	// NOTE, for the next two functions...
 	// Creating a directory or file will add said object to the
@@ -243,13 +250,13 @@ type VirtualFileManager interface {
 	//		parent	- The ID of the parent folder.
 	//		member	- The user making the request.
 	//		name	- The name of the directory.
-	CreateDir(parent VFM_UUID, member User_ID, name string) (VFM_UUID, error)
+	CreateDir(parent VO_UUID, member User_ID, name string) (VO_UUID, error)
 
 	// Create a new file.
 	//		parent	- The ID of the parent folder.
 	//		member	- The user making the request.
 	//		name	- The name of the file.
-	CreateFile(parent VFM_UUID, member, User_ID, name string) (VFM_UUID, error)
+	CreateFile(parent VO_UUID, member, User_ID, name string) (VO_UUID, error)
 
 	// Delete an object. If a user is in one namespace which contains the given
 	// object, he or she has the ability to delete said object.
@@ -257,10 +264,10 @@ type VirtualFileManager interface {
 	// corresponding namespaces.
 	//		obj_id	- The ID of the object to remove (file or folder)
 	//		member	- The user making the request.
-	DeleteObject(obj_id VFM_UUID, member User_ID) error
+	DeleteObject(obj_id VO_UUID, member User_ID) error
 
 	// Get the details of a specific object in the file system.
 	//		obj_id	- The ID of the object in question.
 	//		member 	- The user making the request.
-	GetObjectDetails(obj_id VFM_UUID, member User_ID) (VFM_Object, error)
+	GetObjectDetails(obj_id VO_UUID, member User_ID) (VFM_Object, error)
 }
