@@ -159,13 +159,13 @@ func (s *HootFsServer) MakeDirectory(
 	parentUuid, err := uuid.FromBytes(request.DirId.Value)
 
 	if err != nil {
-		return nil, err
+		return &head.MakeDirectoryResponse{}, status.Error(codes.Internal, "Error creating error.")
 	}
 
 	dirUuid, err := s.vfmg.CreateNewDirectory(request.DirName, parentUuid)
-
 	if err != nil {
-		return nil, err
+		return &head.MakeDirectoryResponse{},
+			status.Error(codes.Internal, fmt.Sprintf("Failed to create directory: %v", err))
 	}
 
 	// Broadcast directory creation to all other clients.
