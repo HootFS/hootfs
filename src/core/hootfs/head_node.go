@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	head "github.com/hootfs/hootfs/protos"
-	protos "github.com/hootfs/hootfs/protos"
 	cluster "github.com/hootfs/hootfs/src/core/cluster"
 	hootfs "github.com/hootfs/hootfs/src/core/file_storage"
 	discover "github.com/hootfs/hootfs/src/discovery/discover"
@@ -47,7 +46,7 @@ func NewHootFsServer(dip string, fmg *hootfs.FileManager,
 	}
 }
 
-func (fms *HootFsServer) GetDirectoryContentsAsProto(dirId uuid.UUID) ([]*protos.ObjectInfo, error) {
+func (fms *HootFsServer) GetDirectoryContentsAsProto(dirId uuid.UUID) ([]*head.ObjectInfo, error) {
 
 	fms.vfmg.RWLock.RLock()
 	defer fms.vfmg.RWLock.RUnlock()
@@ -57,20 +56,20 @@ func (fms *HootFsServer) GetDirectoryContentsAsProto(dirId uuid.UUID) ([]*protos
 		return nil, fmt.Errorf("Directory not found!")
 	}
 
-	contents := make([]*protos.ObjectInfo, len(vd.Subdirs)+len(vd.Files))
+	contents := make([]*head.ObjectInfo, len(vd.Subdirs)+len(vd.Files))
 
 	for dirUuid := range vd.Subdirs {
-		contents = append(contents, &protos.ObjectInfo{
-			ObjectId:   &protos.UUID{Value: dirUuid[:]},
-			ObjectType: protos.ObjectInfo_DIRECTORY,
+		contents = append(contents, &head.ObjectInfo{
+			ObjectId:   &head.UUID{Value: dirUuid[:]},
+			ObjectType: head.ObjectInfo_DIRECTORY,
 			ObjectName: fms.vfmg.Directories[dirUuid].Name,
 		})
 	}
 
 	for fileUuid := range vd.Files {
-		contents = append(contents, &protos.ObjectInfo{
-			ObjectId:   &protos.UUID{Value: fileUuid[:]},
-			ObjectType: protos.ObjectInfo_FILE,
+		contents = append(contents, &head.ObjectInfo{
+			ObjectId:   &head.UUID{Value: fileUuid[:]},
+			ObjectType: head.ObjectInfo_FILE,
 			ObjectName: fms.vfmg.Files[fileUuid].Name,
 		})
 	}
@@ -87,7 +86,7 @@ func (fms *HootFsServer) StartServer() error {
 	var opts []grpc.ServerOption
 	s := grpc.NewServer(opts...)
 
-	protos.RegisterHootFsServiceServer(s, fms)
+	head.RegisterHootFsServiceServer(s, fms)
 
 	// Join the discovery server.
 	nodeId, clusterMap, err := fms.dc.JoinCluster()
@@ -140,16 +139,18 @@ func (s *HootFsServer) GetDirectoryContents(
 	dirUuid, err := uuid.FromBytes(request.DirId.Value)
 
 	if err != nil {
-		return nil, err
+		return &head.GetDirectoryContentsResponse{},
+			status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
 	contents, err := s.GetDirectoryContentsAsProto(dirUuid)
 
 	if err != nil {
-		return nil, err
+		return &head.GetDirectoryContentsResponse{},
+			status.Error(codes.Internal, fmt.Sprintf("Unable to get directory contents: %v", err))
 	}
 
-	return &protos.GetDirectoryContentsResponse{
+	return &head.GetDirectoryContentsResponse{
 		Objects: contents,
 	}, nil
 }
@@ -159,7 +160,8 @@ func (s *HootFsServer) MakeDirectory(
 	parentUuid, err := uuid.FromBytes(request.DirId.Value)
 
 	if err != nil {
-		return &head.MakeDirectoryResponse{}, status.Error(codes.Internal, "Error creating error.")
+		return &head.MakeDirectoryResponse{},
+			status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
 	dirUuid, err := s.vfmg.CreateNewDirectory(request.DirName, parentUuid)
@@ -177,7 +179,7 @@ func (s *HootFsServer) MakeDirectory(
 	}
 
 	return &head.MakeDirectoryResponse{
-		DirId: &protos.UUID{
+		DirId: &head.UUID{
 			Value: dirUuid[:],
 		},
 	}, nil
@@ -188,13 +190,15 @@ func (s *HootFsServer) AddNewFile(
 	parentUuid, err := uuid.FromBytes(request.DirId.Value)
 
 	if err != nil {
-		return nil, err
+		return &head.AddNewFileResponse{},
+			status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
 	fileUuid, err := s.vfmg.CreateNewFile(request.FileName, parentUuid)
 
 	if err != nil {
-		return nil, err
+		return &head.AddNewFileResponse{},
+			status.Error(codes.Internal, fmt.Sprintf("Error creating new file: %v", err))
 	}
 
 	// Send make new file request to all cluster nodes.
@@ -211,8 +215,8 @@ func (s *HootFsServer) AddNewFile(
 	s.fmg.CreateFile(request.FileName, &newFileInfo)
 	s.fmg.WriteFile(&newFileInfo, request.Contents)
 
-	return &protos.AddNewFileResponse{
-		FileId: &protos.UUID{Value: fileUuid[:]},
+	return &head.AddNewFileResponse{
+		FileId: &head.UUID{Value: fileUuid[:]},
 	}, nil
 }
 
@@ -221,7 +225,8 @@ func (s *HootFsServer) UpdateFileContents(
 	fileUuid, err := uuid.FromBytes(request.FileId.Value)
 
 	if err != nil {
-		return nil, err
+		return &head.UpdateFileContentsResponse{},
+			status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
 	// In theory, this file should exist on at least one machine
@@ -241,7 +246,7 @@ func (s *HootFsServer) UpdateFileContents(
 	// This issue we will need to flesh out later when we have more time.
 
 	s.fmg.WriteFile(&newFileInfo, request.Contents)
-	return &protos.UpdateFileContentsResponse{}, nil
+	return &head.UpdateFileContentsResponse{}, nil
 }
 
 func (s *HootFsServer) GetFileContents(
@@ -249,7 +254,7 @@ func (s *HootFsServer) GetFileContents(
 	fileUuid, err := uuid.FromBytes(request.FileId.Value)
 
 	if err != nil {
-		return nil, err
+		return &head.GetFileContentsResponse{}, status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
 	newFileInfo := hootfs.FileInfo{NamespaceId: "USERID", ObjectId: fileUuid}
@@ -262,7 +267,7 @@ func (s *HootFsServer) GetFileContents(
 
 	// TODO : In the future, we should search other machines for missing file.
 	// for now we will just search this machine only... static cluster size.
-	return nil, status.Error(codes.Unimplemented, "Method not implemented")
+	return &head.GetFileContentsResponse{}, status.Error(codes.Unimplemented, "Method not implemented")
 }
 
 // Both Move object and remove object require the parent IDs of the the objects
@@ -270,10 +275,12 @@ func (s *HootFsServer) GetFileContents(
 
 func (s *HootFsServer) MoveObject(
 	ctx context.Context, request *head.MoveObjectRequest) (*head.MoveObjectResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "Method not implemented")
+	return &head.MoveObjectResponse{},
+		status.Error(codes.Unimplemented, "Method not implemented")
 }
 
 func (s *HootFsServer) RemoveObject(
 	ctx context.Context, request *head.RemoveObjectRequest) (*head.RemoveObjectResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "Method not implemented")
+	return &head.RemoveObjectResponse{},
+		status.Error(codes.Unimplemented, "Method not implemented")
 }
