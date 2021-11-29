@@ -13,11 +13,32 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	// After merging, maybe have this resolve from
-	// head_node.go ... instead of redefining it here.
-	connectingPort = ":50060"
-)
+var cwd string
+var cwdId *head.UUID
+var contents map[string]*head.ObjectInfo
+
+func parseFile(fname string) (*head.ObjectInfo, bool) {
+	val, ok := contents[fname]
+	if !ok {
+		return nil, ok
+	}
+	return val, ok
+}
+
+func updateDirContents(rpcClient head.HootFsServiceClient) {
+	req := head.GetDirectoryContentsRequest{DirId: cwdId}
+	resp, err := rpcClient.GetDirectoryContents(context.Background(), &req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+	for k := range contents {
+		delete(contents, k)
+	}
+	for _, obj := range resp.Objects {
+		contents[obj.ObjectName] = obj
+	}
+}
 
 func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 	if len(args) == 0 { // blank command
@@ -96,6 +117,19 @@ func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 			respobjectuuid, _ := uuid.FromBytes(obj.ObjectId.Value)
 			fmt.Printf("%s (id=%s)\n", obj.ObjectName, respobjectuuid.String())
 		}
+	case "cd":
+		if len(args) != 2 {
+			fmt.Fprintln(os.Stderr, "usage: cd [dir]")
+			return
+		}
+		cwdInfo, ok := parseFile(args[1])
+		if !ok || cwdInfo.ObjectType != head.ObjectInfo_DIRECTORY {
+			fmt.Fprintf(os.Stderr, "error: invalid directory\n")
+			return
+		}
+		cwdId = cwdInfo.ObjectId
+		cwd = args[1]
+		updateDirContents(rpcClient)
 	default:
 		fmt.Fprintf(os.Stderr, "no such command %s\n", args[0])
 	}
@@ -103,12 +137,13 @@ func executeCommand(args []string, rpcClient head.HootFsServiceClient) {
 
 func main() {
 	var serverAddr string
-	flag.StringVar(&serverAddr, "s", "127.0.0.1", "the address of the head node to connect to")
+	flag.StringVar(&serverAddr, "s", "127.0.0.1:50060", "the address of the head node to connect to")
 	flag.Parse()
 
 	// connect to the rpc
 	var grpcOpts []grpc.DialOption
-	conn, err := grpc.Dial(serverAddr+connectingPort, grpcOpts...)
+	grpcOpts = append(grpcOpts, grpc.WithInsecure())
+	conn, err := grpc.Dial(serverAddr, grpcOpts...)
 	if err != nil {
 		// failed to connect?
 		fmt.Fprint(os.Stderr, err)
@@ -118,10 +153,12 @@ func main() {
 	// initialize rpc from connection
 	rpcClient := head.NewHootFsServiceClient(conn)
 
+	updateDirContents(rpcClient)
+
 	// run a "shell" where commands can be typed
 	sc := bufio.NewScanner(os.Stdin)
 	for {
-		fmt.Print("hootfs> ")
+		fmt.Printf("hootfs (%s)> ", cwd)
 		sc.Scan()
 		cmd := sc.Text()
 		executeCommand(strings.Fields(cmd), rpcClient)
