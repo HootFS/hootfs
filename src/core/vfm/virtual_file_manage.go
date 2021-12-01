@@ -219,7 +219,8 @@ type VirtualFileManager interface {
 	// By definition, this will be a root object of the namespace.
 	//		nsid	- The Namespace to add to.
 	//		member	- The user making the request.
-	//		name	- The name of the new directory.
+	//		name	- The name of the new object.
+	//		tp		- The type of the new object.
 	CreateFreeObjectInNamespace(nsid Namespace_ID, member User_ID,
 		name string, tp VFM_Object_Type) (VO_ID, error)
 
@@ -249,21 +250,14 @@ type VirtualFileManager interface {
 	//		member	- The user making the request.
 	GetNamespaceDetails(nsid Namespace_ID, member User_ID) (*Namespace, error)
 
-	// NOTE, for the next two functions...
-	// Creating a directory or file will add said object to the
-	// namespace(s) its parent directory.
-
-	// Create a new directory.
+	// Create a new object. This object will be added to the namespaces
+	// of its parent.
 	//		parent	- The ID of the parent folder.
 	//		member	- The user making the request.
-	//		name	- The name of the directory.
-	CreateDir(parent VO_ID, member User_ID, name string) (VO_ID, error)
-
-	// Create a new file.
-	//		parent	- The ID of the parent folder.
-	//		member	- The user making the request.
-	//		name	- The name of the file.
-	CreateFile(parent VO_ID, member, User_ID, name string) (VO_ID, error)
+	//		name	- The name of the object.
+	// 		tp		- The type of the object.
+	CreateObject(parent VO_ID, member User_ID, name string,
+		tp VFM_Object_Type) (VO_ID, error)
 
 	// Delete an object. If a user is in one namespace which contains the given
 	// object, he or she has the ability to delete said object.
@@ -271,10 +265,10 @@ type VirtualFileManager interface {
 	// corresponding namespaces.
 	//		obj_id	- The ID of the object to remove (file or folder)
 	//		member	- The user making the request.
-	DeleteObject(obj_id VO_ID, member User_ID) error
+	DeleteObject(void VO_ID, member User_ID) error
 
 	// Get the details of a specific object in the file system.
 	//		obj_id	- The ID of the object in question.
 	//		member 	- The user making the request.
-	GetObjectDetails(obj_id VO_ID, member User_ID) (*VFM_Object, error)
+	GetObjectDetails(void VO_ID, member User_ID) (*VFM_Object, error)
 }

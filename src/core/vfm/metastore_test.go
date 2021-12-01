@@ -157,6 +157,32 @@ func TestAll(t *testing.T) {
 
 		FatalIfErr(t, ms.CheckVObject(void, nil, ErrVObjectNotFound))
 		FatalIfErr(t, ms.CheckRoot(nsid, void, nil, ErrVObjectNotFound))
+		FatalIfErr(t, ms.CheckVObjectAccess(void, "Iago",
+			nil, ErrVObjectNotFound))
+	})
+
+	t.Run("Object Creation", func(t *testing.T) {
+		FatalIfErr(t, ms.CreateUser("Dez"))
+		FatalIfErr(t, ms.CreateUser("Othello"))
+
+		nsid, err := ms.CreateNamespace("NS 1", "Dez")
+		FatalIfErr(t, err)
+
+		void1, err := ms.CreateFreeObjectInNamespace(nsid, "Dez", "Folder 1",
+			VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		void2, err := ms.CreateObject(void1, "Dez", "File 1", VFM_File_Type)
+		FatalIfErr(t, err)
+
+		FatalIfErr(t, ms.CheckVObject(void2, nil, ErrVObjectNotFound))
+		FatalIfErr(t, ms.CheckVObjectAccess(void2, "Dez", nil, ErrNoAccess))
+
+		_, err = ms.CreateObject(void1, "Othello", "File 2", VFM_File_Type)
+		ExpectErr(t, err, ErrNoAccess)
+
+		_, err = ms.CreateObject(void2, "Dez", "File 2", VFM_File_Type)
+		ExpectErr(t, err, ErrNotADirectory)
 	})
 
 	FatalIfErr(t, ms.db.Drop(context.TODO()))

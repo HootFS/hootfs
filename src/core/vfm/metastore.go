@@ -143,6 +143,90 @@ func checkHelper(res *mongo.SingleResult, found error, not_found error) error {
 	return res.Err()
 }
 
+// Checks if a member has access to a specific object.
+// This will initially check if the given file and user exist.
+func (ms *MetaStore) CheckVObjectAccess(void VO_ID, member User_ID,
+	found error, not_found error) error {
+	if err := ms.CheckUser(member, nil, ErrUserDoesNotExist); err != nil {
+		return err
+	}
+
+	// Confirm the virtual object exists.
+	if err := ms.CheckVObject(void, nil, not_found); err != nil {
+		// Note, not found is returned here instead of VObject Doesn't Exist.
+		// We may not be willing to tell the user whether or not the
+		// request object exists or not.
+		return err
+	}
+
+	// Now perform search...
+	curr_root := void
+	for curr_root != Nil_VO_ID {
+		res := ms.vobjects().FindOne(context.TODO(), bson.M{"void": curr_root})
+
+		// This marks an error which is not the user's fault.
+		if res.Err() != nil {
+			return ErrInternal
+		}
+
+		var vobject VObject
+		res.Decode(&vobject)
+
+		// We now will seach the given namespaces to see
+		// if the user belongs to any of them.
+		namespaces := vobject.Namespaces
+		res = ms.namespaces().FindOne(context.TODO(),
+			bson.M{"nsid": bson.M{"$in": namespaces}, "users": member})
+
+		// If we found a namespace... success!!!
+		if res.Err() == nil {
+			return found
+		}
+
+		// If nothing was found... continue
+		if res.Err() == mongo.ErrNoDocuments {
+			curr_root = vobject.ClosestRoot
+		} else {
+			// Normal error case.
+			return res.Err()
+		}
+	}
+
+	// Nothing was found!
+	return not_found
+}
+
+// TODO Potentially delete this...
+// // Retrieve all namespaces a virtual object belongs to.
+// func (ms *MetaStore) AccumulateNamespaces(void VO_ID) ([]Namespace_ID, error) {
+// 	// Confirm the virtual object exists.
+// 	if err := ms.CheckVObject(void, nil, ErrVObjectNotFound); err != nil {
+// 		return nil, err
+// 	}
+
+// 	var vobject VObject
+// 	var namespaces []Namespace_ID
+
+// 	curr_root := void
+// 	for curr_root != Nil_VO_ID {
+// 		res := ms.vobjects().FindOne(context.TODO(), bson.M{"void": void})
+
+// 		// There should always be an object tied to the IDs in this loop.
+// 		// If this is not the case, there must be some error with the
+// 		// data in the DB... not the user's fault!
+// 		if res.Err() != nil {
+// 			return nil, ErrInternal
+// 		}
+
+// 		res.Decode(&vobject)
+
+// 		namespaces = append(namespaces, vobject.Namespaces...)
+// 		curr_root = vobject.ClosestRoot
+// 	}
+
+// 	return namespaces, nil
+// }
+
 func (ms *MetaStore) GenerateNewVOID() (VO_ID, error) {
 	var new_void VO_ID
 	for {
@@ -165,6 +249,7 @@ func (ms *MetaStore) GenerateNewVOID() (VO_ID, error) {
 }
 
 var (
+	ErrInternal            = errors.New("Inconsistent results!")
 	ErrNotImplemented      = errors.New("Not implemented!")
 	ErrMachineExists       = errors.New("Machine already exists!")
 	ErrMachineDoesNotExist = errors.New("Machine does not exist!")
@@ -174,6 +259,7 @@ var (
 	ErrAccess              = errors.New("Namespace is accessible!")
 	ErrNoUserInNamespace   = errors.New("Cannot find user in namespace!")
 	ErrVObjectNotFound     = errors.New("Virtual object not found!")
+	ErrNotADirectory       = errors.New("Not a directory!")
 )
 
 // Virtual File Manager Interface Methods Below .............
@@ -415,4 +501,92 @@ func (ms *MetaStore) CreateFreeObjectInNamespace(nsid Namespace_ID,
 	}
 
 	return void, nil
+}
+
+// TODO --------------------------------
+// AddObjectToNamespace(nsid Namespace_ID,
+// 	member User_ID, object VO_ID) error
+
+// TODO ---------------------------------
+// RemoveObjectFromNamespace(nsid Namespace_ID, member User_ID,
+// 	object VO_ID) error
+
+// TODO -------------------------------
+// GetNamespaceDetails(nsid Namespace_ID, member User_ID) (*Namespace, error)
+
+func (ms *MetaStore) CreateObject(parent VO_ID, member User_ID, name string,
+	tp VFM_Object_Type) (VO_ID, error) {
+	// First off, does the user have access to said parent.
+	err := ms.CheckVObjectAccess(parent, member, nil, ErrNoAccess)
+	if err != nil {
+		return Nil_VO_ID, err
+	}
+
+	// Generate a new ID for the object and add it to the parent's
+	// subobjects array.
+	void, err := ms.GenerateNewVOID()
+	if err != nil {
+		return Nil_VO_ID, err
+	}
+
+	res, err := ms.vobjects().UpdateOne(context.TODO(),
+		bson.M{"void": parent, "isdir": true},
+		bson.M{"$push": bson.M{"subobjects": void}})
+
+	if err != nil {
+		return Nil_VO_ID, err
+	}
+
+	// The requested object was not a directory!!!
+	if res.MatchedCount == 0 {
+		return Nil_VO_ID, ErrNotADirectory
+	}
+
+	var p_vobject VObject
+	fres := ms.vobjects().FindOne(context.TODO(), bson.M{"void": parent})
+
+	if fres.Err() == mongo.ErrNoDocuments {
+		return Nil_VO_ID, ErrInternal
+	}
+
+	if fres.Err() != nil {
+		return Nil_VO_ID, fres.Err()
+	}
+
+	// Otherwise, the parent was found!
+	fres.Decode(&p_vobject)
+
+	// If the parent object is the root object of any namespaces,
+	// then the parent object will be the new object's closest root.
+	// Otherwise, we will simply pass the parent's closest root to
+	// the child.
+	var closest_root VO_ID
+	if len(p_vobject.Namespaces) == 0 {
+		closest_root = p_vobject.ClosestRoot
+	} else {
+		closest_root = parent
+	}
+
+	new_vobject := VObject{
+		VOID:        void,
+		ParentID:    parent,
+		ClosestRoot: closest_root,
+		Name:        name,
+		Namespaces:  []Namespace_ID{},
+		IsDir:       tp == VFM_Dir_Type,
+		Machines:    []Machine_ID{},
+		SubObjects:  []VO_ID{},
+	}
+
+	_, err = ms.vobjects().InsertOne(context.TODO(), new_vobject)
+
+	if err != nil {
+		return Nil_VO_ID, err
+	}
+
+	return void, nil
+}
+
+func (ms *MetaStore) DeleteObject(void VO_ID, member User_ID) error {
+	return nil
 }
