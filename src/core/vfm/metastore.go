@@ -117,6 +117,20 @@ func (ms *MetaStore) CheckNamespace(nsid Namespace_ID, member User_ID,
 		bson.M{"nsid": nsid, "users": member}), found, not_found)
 }
 
+// Confirm the given virtual object exists.
+func (ms *MetaStore) CheckVObject(void VO_ID, found error,
+	not_found error) error {
+	return checkHelper(ms.vobjects().FindOne(context.TODO(),
+		bson.M{"void": void}), found, not_found)
+}
+
+// Confirm a virtual object is a root of a namespace.
+func (ms *MetaStore) CheckRoot(nsid Namespace_ID, void VO_ID,
+	found error, not_found error) error {
+	return checkHelper(ms.namespaces().FindOne(context.TODO(),
+		bson.M{"nsid": nsid, "rootobjects": void}), found, not_found)
+}
+
 func checkHelper(res *mongo.SingleResult, found error, not_found error) error {
 	if res.Err() == nil {
 		return found
@@ -129,6 +143,27 @@ func checkHelper(res *mongo.SingleResult, found error, not_found error) error {
 	return res.Err()
 }
 
+func (ms *MetaStore) GenerateNewVOID() (VO_ID, error) {
+	var new_void VO_ID
+	for {
+		new_void = VO_ID(uuid.New())
+
+		if new_void == Nil_VO_ID {
+			continue
+		}
+
+		res := ms.vobjects().FindOne(context.TODO(), bson.M{"void": new_void})
+
+		if res.Err() == mongo.ErrNoDocuments {
+			return new_void, nil
+		}
+
+		if res.Err() != nil {
+			return Nil_VO_ID, res.Err()
+		}
+	}
+}
+
 var (
 	ErrNotImplemented      = errors.New("Not implemented!")
 	ErrMachineExists       = errors.New("Machine already exists!")
@@ -138,6 +173,7 @@ var (
 	ErrNoAccess            = errors.New("Unable to access namespace!")
 	ErrAccess              = errors.New("Namespace is accessible!")
 	ErrNoUserInNamespace   = errors.New("Cannot find user in namespace!")
+	ErrVObjectNotFound     = errors.New("Virtual object not found!")
 )
 
 // Virtual File Manager Interface Methods Below .............
@@ -252,9 +288,10 @@ func (ms *MetaStore) CreateNamespace(name string,
 	}
 
 	namespace := Namespace{
-		NSID:  nsid,
-		Name:  name,
-		Users: []User_ID{member},
+		NSID:        nsid,
+		Name:        name,
+		RootObjects: []VO_ID{},
+		Users:       []User_ID{member},
 	}
 
 	// Finally, upload the Namespace to Mongo.
@@ -335,4 +372,47 @@ func (ms *MetaStore) RemoveUserFromNamespace(nsid Namespace_ID,
 		bson.M{"$pull": bson.M{"users": axed}})
 
 	return err
+}
+
+func (ms *MetaStore) CreateFreeObjectInNamespace(nsid Namespace_ID,
+	member User_ID, name string, tp VFM_Object_Type) (VO_ID, error) {
+	// First confirm we have access.
+	if err := ms.CheckNamespace(nsid, member, nil, ErrNoAccess); err != nil {
+		return Nil_VO_ID, err
+	}
+
+	// Next generate new object ID.
+	void, err := ms.GenerateNewVOID()
+
+	if err != nil {
+		return Nil_VO_ID, err
+	}
+
+	// Create record for new object.
+	vobject := VObject{
+		VOID:        void,
+		ParentID:    Nil_VO_ID,
+		ClosestRoot: Nil_VO_ID,
+		Name:        name,
+		Namespaces:  []Namespace_ID{nsid},
+		IsDir:       tp == VFM_Dir_Type,
+		Machines:    []Machine_ID{},
+		SubObjects:  []VO_ID{},
+	}
+
+	_, err = ms.vobjects().InsertOne(context.TODO(), vobject)
+
+	if err != nil {
+		return Nil_VO_ID, err
+	}
+
+	// Lastly add root to the Namespace roots slice.
+	_, err = ms.namespaces().UpdateOne(context.TODO(),
+		bson.M{"nsid": nsid}, bson.M{"$push": bson.M{"rootobjects": void}})
+
+	if err != nil {
+		return Nil_VO_ID, err
+	}
+
+	return void, nil
 }

@@ -214,6 +214,15 @@ type VirtualFileManager interface {
 	// either (a) has no parent directory, or (b) has a parent directory which
 	// does not belong to namespace N.
 
+	// Create a freestanding Object in a namespace.
+	// I.e. a directory which belongs to no parent directory.
+	// By definition, this will be a root object of the namespace.
+	//		nsid	- The Namespace to add to.
+	//		member	- The user making the request.
+	//		name	- The name of the new directory.
+	CreateFreeObjectInNamespace(nsid Namespace_ID, member User_ID,
+		name string, tp VFM_Object_Type) (VO_ID, error)
+
 	// Adds an object to a Namespace. (Either a folder or file)
 	// This file cannot already belong to the given namespace.
 	// If added successfully, the added object will be a Root object of
@@ -234,24 +243,6 @@ type VirtualFileManager interface {
 	//		object	- The object to remove from the namespace.
 	RemoveObjectFromNamespace(nsid Namespace_ID, member User_ID,
 		object VO_ID) error
-
-	// Create a freestanding Directory in a namespace.
-	// I.e. a directory which belongs to no parent directory.
-	// By definition, this will be a root object of the namespace.
-	//		nsid	- The Namespace to add to.
-	//		member	- The user making the request.
-	//		name	- The name of the new directory.
-	CreateFreeDirInNamespace(nsid Namespace_ID, member User_ID,
-		name string) (VO_ID, error)
-
-	// Create a freestanding file in a namespace.
-	// This file will belong to no parent directory.
-	// Again, this will be a root object of the namespace.
-	//		nsid	- The Namespace to add to.
-	//		member	- The user making the request.
-	//		name	- The name of the new file.
-	CreateFreeFileInNamespace(nsid Namespace_ID, member User_ID,
-		name string) (VO_ID, error)
 
 	// Get the IDs of every root object in a given name space.
 	// 		nsid	- The Namespace in question.

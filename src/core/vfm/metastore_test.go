@@ -145,6 +145,20 @@ func TestAll(t *testing.T) {
 		FatalIfErr(t, ms.CheckNamespace(nsid2, "Bobby", nil, ErrNoAccess))
 	})
 
+	t.Run("Root Object Creation", func(t *testing.T) {
+		FatalIfErr(t, ms.CreateUser("Iago"))
+		nsid, err := ms.CreateNamespace("NS 1", "Iago")
+		FatalIfErr(t, err)
+
+		void, err := ms.CreateFreeObjectInNamespace(nsid, "Iago", "Folder 1",
+			VFM_Dir_Type)
+
+		FatalIfErr(t, err)
+
+		FatalIfErr(t, ms.CheckVObject(void, nil, ErrVObjectNotFound))
+		FatalIfErr(t, ms.CheckRoot(nsid, void, nil, ErrVObjectNotFound))
+	})
+
 	FatalIfErr(t, ms.db.Drop(context.TODO()))
 	FatalIfErr(t, ms.Disconnect())
 }
