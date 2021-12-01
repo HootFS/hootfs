@@ -24,6 +24,16 @@ type User_ID string
 // probably the best option.
 type Machine_ID uint64
 
+// All namespace information accessible by a user.
+type Namespace struct {
+	NSID        Namespace_ID
+	Name        string
+	RootObjects []VO_ID
+
+	// Users which have access to this Namespace.
+	Users []User_ID
+}
+
 // VFM_Obj_Type will classify objects as either files or directorys.
 type VFM_Object_Type int
 
@@ -246,7 +256,7 @@ type VirtualFileManager interface {
 	// Get the IDs of every root object in a given name space.
 	// 		nsid	- The Namespace in question.
 	//		member	- The user making the request.
-	GetNamespaceRoots(nsid Namespace_ID, member User_ID) ([]VO_ID, error)
+	GetNamespaceDetails(nsid Namespace_ID, member User_ID) (*Namespace, error)
 
 	// NOTE, for the next two functions...
 	// Creating a directory or file will add said object to the
@@ -275,5 +285,5 @@ type VirtualFileManager interface {
 	// Get the details of a specific object in the file system.
 	//		obj_id	- The ID of the object in question.
 	//		member 	- The user making the request.
-	GetObjectDetails(obj_id VO_ID, member User_ID) (VFM_Object, error)
+	GetObjectDetails(obj_id VO_ID, member User_ID) (*VFM_Object, error)
 }

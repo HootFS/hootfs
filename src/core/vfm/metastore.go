@@ -12,7 +12,7 @@ import (
 
 const MetaStoreURI = "mongodb+srv://caa8:comp413@cluster0.jmblg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
 
-// NOTE, the below four structs mirror how data will be
+// NOTE, the below structs mirror how data will be
 // stored in the metastore.
 // Each type of struct will have its own collection
 // for being stored in.
@@ -29,14 +29,8 @@ type User struct {
 	// Potentially more here...
 }
 
-type Namespace struct {
-	NSID        Namespace_ID
-	Name        string
-	RootObjects []VO_ID
-
-	// Users which have access to this Namespace.
-	Users []User_ID
-}
+// Namespaces will mirror the Namespace struct found in
+// virtual_file_manager.go
 
 type VObject struct {
 	VOID     VO_ID
@@ -105,6 +99,36 @@ func (ms *MetaStore) Disconnect() error {
 	return ms.client.Disconnect(context.TODO())
 }
 
+func (ms *MetaStore) CheckMachine(machine Machine_ID, found error,
+	not_found error) error {
+	return checkHelper(ms.machines().FindOne(context.TODO(),
+		bson.M{"mid": machine}), found, not_found)
+}
+
+func (ms *MetaStore) CheckUser(user User_ID, found error,
+	not_found error) error {
+	return checkHelper(ms.users().FindOne(context.TODO(), bson.M{"uid": user}),
+		found, not_found)
+}
+
+func (ms *MetaStore) CheckNamespace(nsid Namespace_ID, member User_ID,
+	found error, not_found error) error {
+	return checkHelper(ms.namespaces().FindOne(context.TODO(),
+		bson.M{"nsid": nsid, "users": member}), found, not_found)
+}
+
+func checkHelper(res *mongo.SingleResult, found error, not_found error) error {
+	if res.Err() == nil {
+		return found
+	}
+
+	if res.Err() == mongo.ErrNoDocuments {
+		return not_found
+	}
+
+	return res.Err()
+}
+
 var (
 	ErrNotImplemented      = errors.New("Not implemented!")
 	ErrMachineExists       = errors.New("Machine already exists!")
@@ -112,6 +136,7 @@ var (
 	ErrUserExists          = errors.New("User already exists!")
 	ErrUserDoesNotExist    = errors.New("User does not exist!")
 	ErrNoAccess            = errors.New("Unable to access namespace!")
+	ErrAccess              = errors.New("Namespace is accessible!")
 )
 
 // Virtual File Manager Interface Methods Below .............
@@ -151,17 +176,11 @@ func (ms *MetaStore) DeleteMachine(old_machine Machine_ID) error {
 }
 
 func (ms *MetaStore) CreateUser(new_user User_ID) error {
-	err := ms.users().FindOne(context.TODO(),
-		bson.M{"uid": new_user}).Err()
-
-	if err == nil {
-		return ErrUserExists
-	}
-
-	if err != mongo.ErrNoDocuments {
+	if err := ms.CheckUser(new_user, ErrUserExists, nil); err != nil {
 		return err
 	}
-	_, err = ms.users().InsertOne(context.TODO(), User{UID: new_user})
+
+	_, err := ms.users().InsertOne(context.TODO(), User{UID: new_user})
 
 	return err
 }
@@ -200,14 +219,7 @@ func (ms *MetaStore) DeleteUser(old_user User_ID) error {
 
 func (ms *MetaStore) CreateNamespace(name string,
 	member User_ID) (Namespace_ID, error) {
-	err := ms.users().FindOne(context.TODO(),
-		bson.M{"uid": member}).Err()
-
-	if err == mongo.ErrNoDocuments {
-		return Nil_Namespace_ID, ErrUserDoesNotExist
-	}
-
-	if err != nil {
+	if err := ms.CheckUser(member, nil, ErrUserDoesNotExist); err != nil {
 		return Nil_Namespace_ID, err
 	}
 
@@ -245,7 +257,7 @@ func (ms *MetaStore) CreateNamespace(name string,
 	}
 
 	// Finally, upload the Namespace to Mongo.
-	_, err = ms.namespaces().InsertOne(context.TODO(), namespace)
+	_, err := ms.namespaces().InsertOne(context.TODO(), namespace)
 
 	if err != nil {
 		return Nil_Namespace_ID, err
@@ -288,3 +300,9 @@ func (ms *MetaStore) DeleteNamespace(nsid Namespace_ID, member User_ID) error {
 	// of file objects.
 	// ----------------------------
 }
+
+// func (ms *MetaStore) AddUserToNamespace(nsid Namespace_ID, recruiter User_ID,
+// 	recruit User_ID) error {
+// 	// First off, does the recruiter exist?
+// 	err :=
+// }
