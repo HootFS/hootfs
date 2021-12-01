@@ -65,11 +65,11 @@ func (c *ClusterServer) AddNewFileCS(ctx context.Context,
 	request *hootpb.AddNewFileCSRequest) (*hootpb.AddNewFileCSResponse, error) {
 	new_id, err := uuid.FromBytes(request.NewFileId.Value)
 	if err != nil {
-		return nil, ErrInvalidId
+		return &hootpb.AddNewFileCSResponse{}, status.Error(codes.InvalidArgument, ErrInvalidId.Error())
 	}
 	par_id, err := uuid.FromBytes(request.ParentDirId.Value)
 	if err != nil {
-		return nil, ErrInvalidId
+		return &hootpb.AddNewFileCSResponse{}, status.Error(codes.InvalidArgument, ErrInvalidId.Error())
 	}
 
 	// Add new file to virtual file manager
@@ -82,7 +82,7 @@ func (c *ClusterServer) AddNewFileCS(ctx context.Context,
 	new_file_info := hootfs.FileInfo{NamespaceId: request.UserId, ObjectId: new_id}
 	c.fmg.CreateFile(request.NewFileName, &new_file_info)
 	if err := c.fmg.WriteFile(&new_file_info, request.Contents); err != nil {
-		return nil, status.Error(
+		return &hootpb.AddNewFileCSResponse{}, status.Error(
 			codes.Internal, fmt.Sprintf("Failed to write  to file: %v", err))
 	}
 
@@ -93,11 +93,13 @@ func (c *ClusterServer) MakeDirectoryCS(ctx context.Context,
 	request *hootpb.MakeDirectoryCSRequest) (*hootpb.MakeDirectoryCSResponse, error) {
 	dir_id, err := uuid.FromBytes(request.NewDirId.Value)
 	if err != nil {
-		return nil, ErrInvalidId
+		return &hootpb.MakeDirectoryCSResponse{},
+			status.Error(codes.InvalidArgument, ErrInvalidId.Error())
 	}
 	par_id, err := uuid.FromBytes(request.ParentDirId.Value)
 	if err != nil {
-		return nil, ErrInvalidId
+		return &hootpb.MakeDirectoryCSResponse{},
+			status.Error(codes.InvalidArgument, ErrInvalidId.Error())
 	}
 	vir_dir := hootfs.VirtualDirectory{
 		Name:    request.NewDirName,
@@ -115,11 +117,11 @@ func (c *ClusterServer) UpdateFileContentsCS(ctx context.Context,
 	request *hootpb.UpdateFileContentsCSRequest) (*hootpb.UpdateFileContentsCSResponse, error) {
 	file_id, err := uuid.FromBytes(request.FileId.Value)
 	if err != nil {
-		return nil, ErrInvalidId
+		return &hootpb.UpdateFileContentsCSResponse{}, status.Error(codes.InvalidArgument, ErrInvalidId.Error())
 	}
 	file_info := hootfs.FileInfo{NamespaceId: request.UserId, ObjectId: file_id}
 	if err := c.fmg.WriteFile(&file_info, request.Contents); err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("Unable to write file %v: %v", file_info.ObjectId, err))
+		return &hootpb.UpdateFileContentsCSResponse{}, status.Error(codes.Internal, fmt.Sprintf("Unable to write file %v: %v", file_info.ObjectId, err))
 	}
 	return &hootpb.UpdateFileContentsCSResponse{
 		UpdatedFileId: &hootpb.UUID{Value: file_id[:]}}, nil
@@ -128,16 +130,16 @@ func (c *ClusterServer) UpdateFileContentsCS(ctx context.Context,
 func (c *ClusterServer) MoveObjectCS(ctx context.Context, request *hootpb.MoveObjectCSRequest) (*hootpb.MoveObjectCSResponse, error) {
 	obj_id, err := uuid.FromBytes(request.CurrObjectId.Value)
 	if err != nil {
-		return nil, ErrInvalidId
+		return &hootpb.MoveObjectCSResponse{}, status.Error(codes.InvalidArgument, ErrInvalidId.Error())
 	}
 
 	if _, exists := c.vfmg.Directories[obj_id]; exists {
 
 	}
 
-	return nil, ErrUnimplemented
+	return &hootpb.MoveObjectCSResponse{}, status.Error(codes.Unimplemented, ErrUnimplemented.Error())
 }
 
 func (c *ClusterServer) RemoveObjectCS(ctx context.Context, request *hootpb.RemoveObjectCSRequest) (*hootpb.RemoveObjectCSResponse, error) {
-	return nil, ErrUnimplemented
+	return &hootpb.RemoveObjectCSResponse{}, status.Error(codes.Unimplemented, ErrUnimplemented.Error())
 }

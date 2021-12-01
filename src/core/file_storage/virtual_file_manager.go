@@ -85,6 +85,7 @@ func (m *VirtualFileManager) CreateNewDirectory(dirname string, parent uuid.UUID
 	}
 
 	m.RWLock.Lock()
+	defer m.RWLock.Unlock()
 	dir, exists := m.Directories[parent]
 	if !exists {
 		return uuid.Nil, ErrParentDirDNE
@@ -92,7 +93,6 @@ func (m *VirtualFileManager) CreateNewDirectory(dirname string, parent uuid.UUID
 
 	dir.Files[dirUUID] = true
 	m.Directories[dirUUID] = *makeVirtualDirectory(dirname, dirUUID)
-	m.RWLock.Unlock()
 
 	return dirUUID, nil
 }
