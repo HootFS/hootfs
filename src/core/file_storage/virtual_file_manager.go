@@ -8,11 +8,22 @@ import (
 	"github.com/google/uuid"
 )
 
+var ErrParentDirDNE = fmt.Errorf("Parent directory does not exist")
+
 type VirtualDirectory struct {
 	Name    string
 	Id      uuid.UUID
 	Subdirs map[uuid.UUID]bool
 	Files   map[uuid.UUID]bool
+}
+
+func makeVirtualDirectory(name string, id uuid.UUID) *VirtualDirectory {
+	return &VirtualDirectory{
+		Name:    name,
+		Id:      id,
+		Subdirs: make(map[uuid.UUID]bool),
+		Files:   make(map[uuid.UUID]bool),
+	}
 }
 
 type VirtualFile struct {
@@ -28,6 +39,26 @@ type VirtualFileManager struct {
 	RWLock sync.RWMutex
 }
 
+func NewVirtualFileManager() *VirtualFileManager {
+	return &VirtualFileManager{
+		Directories: make(map[uuid.UUID]VirtualDirectory),
+		Files:       make(map[uuid.UUID]VirtualFile),
+	}
+}
+
+func (m *VirtualFileManager) CreateNewNamespace(name string) (uuid.UUID, error) {
+	ns_id, err := uuid.NewUUID()
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("Failed to construct new UUID for new namespace: %v", err)
+	}
+
+	m.RWLock.Lock()
+	defer m.RWLock.Unlock()
+	m.Directories[ns_id] = *makeVirtualDirectory(name, ns_id)
+
+	return ns_id, nil
+}
+
 func (m *VirtualFileManager) CreateNewFile(filename string, parent uuid.UUID) (uuid.UUID, error) {
 	fileUUID, err := uuid.NewUUID()
 	if err != nil {
@@ -35,7 +66,12 @@ func (m *VirtualFileManager) CreateNewFile(filename string, parent uuid.UUID) (u
 	}
 
 	m.RWLock.Lock()
-	m.Directories[parent].Files[fileUUID] = true
+	dir, exists := m.Directories[parent]
+	if !exists {
+		return uuid.Nil, ErrParentDirDNE
+	}
+
+	dir.Files[fileUUID] = true
 	m.Files[fileUUID] = VirtualFile{Name: filename, Id: fileUUID}
 	m.RWLock.Unlock()
 
@@ -49,13 +85,14 @@ func (m *VirtualFileManager) CreateNewDirectory(dirname string, parent uuid.UUID
 	}
 
 	m.RWLock.Lock()
-	m.Directories[parent].Files[dirUUID] = true
-	m.Directories[dirUUID] = VirtualDirectory{
-		Name:    dirname,
-		Id:      dirUUID,
-		Subdirs: make(map[uuid.UUID]bool),
-		Files:   make(map[uuid.UUID]bool)}
-	m.RWLock.Unlock()
+	defer m.RWLock.Unlock()
+	dir, exists := m.Directories[parent]
+	if !exists {
+		return uuid.Nil, ErrParentDirDNE
+	}
+
+	dir.Files[dirUUID] = true
+	m.Directories[dirUUID] = *makeVirtualDirectory(dirname, dirUUID)
 
 	return dirUUID, nil
 }

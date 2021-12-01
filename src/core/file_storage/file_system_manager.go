@@ -171,6 +171,10 @@ func (m *FileManager) DeleteFile(fileInfo *FileInfo) error {
 		return ErrFileNotFound
 	}
 
+	if fileObj.Filetype != FILE {
+		return ErrNeedFileNotDir
+	}
+
 	err := m.Fs.Remove(path.Join(m.Root, fileObj.ParentDir, fileObj.RelativeFilename))
 	if err != nil {
 		return err
@@ -201,7 +205,7 @@ func (m *FileManager) DeleteDirectory(fileInfo *FileInfo) error {
 		return ErrFileNotFound
 	}
 
-	if fileObj.Filetype == DIRECTORY {
+	if fileObj.Filetype != DIRECTORY {
 		return ErrNeedDirNotFile
 	}
 

@@ -12,6 +12,7 @@ type SystemMapper struct {
 }
 
 var errFileAlreadyExistsInMapping = errors.New("File already exists in System mapper")
+var errNoSystemsToMapTo = errors.New("Cannot map file to system, as there are no systems to map to")
 
 func NewSystemMapper() *SystemMapper {
 	return &SystemMapper{systems: make(map[uint64]bool), systemMapping: make(map[uuid.UUID][]uint64)}
@@ -28,6 +29,10 @@ func (s *SystemMapper) RemoveSystem(sysId uint64) {
 func (s *SystemMapper) MapNewFile(fileId uuid.UUID) ([]uint64, error) {
 	if _, exists := s.systemMapping[fileId]; exists {
 		return nil, errFileAlreadyExistsInMapping
+	}
+
+	if len(s.systems) == 0 {
+		return nil, errNoSystemsToMapTo
 	}
 
 	s.systemMapping[fileId] = make([]uint64, len(s.systems))
