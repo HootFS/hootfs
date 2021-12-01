@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -11,18 +12,10 @@ import (
 
 const MetaStoreURI = "mongodb+srv://caa8:comp413@cluster0.jmblg.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
 
-const (
-	C_Machines        = "Machines"
-	C_Users           = "Users"
-	C_Namespaces      = "Namespaces"
-	C_Virtual_Objects = "Virtual_Objects"
-)
-
 // NOTE, the below four structs mirror how data will be
 // stored in the metastore.
 // Each type of struct will have its own collection
-// for being stored in. These are seen above with all
-// collection names starting with the prefix C_.
+// for being stored in.
 
 type Machine struct {
 	MID Machine_ID
@@ -37,7 +30,8 @@ type User struct {
 }
 
 type Namespace struct {
-	NID         Namespace_ID
+	NSID        Namespace_ID
+	Name        string
 	RootObjects []VO_ID
 
 	// Users which have access to this Namespace.
@@ -57,7 +51,7 @@ type VObject struct {
 
 	// A namespace N will be in this slice if and only if this object
 	// is a root object of N.
-	namespaces []Namespace_ID
+	Namespaces []Namespace_ID
 
 	IsDir bool
 
@@ -72,7 +66,23 @@ type VObject struct {
 
 type MetaStore struct {
 	client *mongo.Client
-	DB     *mongo.Database
+	db     *mongo.Database
+}
+
+func (ms *MetaStore) machines() *mongo.Collection {
+	return ms.db.Collection("machines")
+}
+
+func (ms *MetaStore) users() *mongo.Collection {
+	return ms.db.Collection("users")
+}
+
+func (ms *MetaStore) namespaces() *mongo.Collection {
+	return ms.db.Collection("namespaces")
+}
+
+func (ms *MetaStore) vobjects() *mongo.Collection {
+	return ms.db.Collection("vobjects")
 }
 
 func NewMetaStore(db string) (*MetaStore, error) {
@@ -87,7 +97,7 @@ func NewMetaStore(db string) (*MetaStore, error) {
 
 	return &MetaStore{
 		client: client,
-		DB:     client.Database(db),
+		db:     client.Database(db),
 	}, nil
 }
 
@@ -96,27 +106,29 @@ func (ms *MetaStore) Disconnect() error {
 }
 
 var (
-	ErrNotImplemented      = errors.New("Not Implemented!")
-	ErrMachineExists       = errors.New("Machine Already Exists!")
-	ErrMachineDoesNotExist = errors.New("Machine Does Not Exist!")
+	ErrNotImplemented      = errors.New("Not implemented!")
+	ErrMachineExists       = errors.New("Machine already exists!")
+	ErrMachineDoesNotExist = errors.New("Machine does not exist!")
+	ErrUserExists          = errors.New("User already exists!")
+	ErrUserDoesNotExist    = errors.New("User does not exist!")
+	ErrNoAccess            = errors.New("Unable to access namespace!")
 )
 
+// Virtual File Manager Interface Methods Below .............
+
 func (ms *MetaStore) CreateMachine(new_machine Machine_ID) error {
-	filter := bson.D{{"mid", new_machine}}
+	err := ms.machines().FindOne(context.TODO(),
+		bson.M{"mid": new_machine}).Err()
 
-	// Must make sure this is not a repeat machine ID.
-	match := ms.DB.Collection(C_Machines).FindOne(context.TODO(), filter)
-
-	if match.Err() == nil {
+	if err == nil {
 		return ErrMachineExists
 	}
 
-	// Error sending request.
-	if match.Err() != mongo.ErrNoDocuments {
-		return match.Err()
+	if err != mongo.ErrNoDocuments {
+		return err
 	}
 
-	_, err := ms.DB.Collection(C_Machines).InsertOne(context.TODO(),
+	_, err = ms.machines().InsertOne(context.TODO(),
 		Machine{MID: new_machine})
 
 	return err
@@ -124,16 +136,155 @@ func (ms *MetaStore) CreateMachine(new_machine Machine_ID) error {
 
 func (ms *MetaStore) DeleteMachine(old_machine Machine_ID) error {
 	// First we must make sure the machine actually exists.
-	filter := bson.D{{"mid", old_machine}}
-	res, err := ms.DB.Collection(C_Machines).DeleteOne(context.TODO(), filter)
-
-	// TODO ----------------------------
-	// Must make sure to delete this machine number from all File Objects!
-	// ---------------------------------
+	filter := bson.M{"mid": old_machine}
+	res, err := ms.machines().DeleteOne(context.TODO(), filter)
 
 	if res.DeletedCount == 0 {
 		return ErrMachineDoesNotExist
 	}
 
+	// TODO ----------------------------
+	// Must make sure to delete this machine number from all File Objects!
+	// ---------------------------------
+
 	return err
+}
+
+func (ms *MetaStore) CreateUser(new_user User_ID) error {
+	err := ms.users().FindOne(context.TODO(),
+		bson.M{"uid": new_user}).Err()
+
+	if err == nil {
+		return ErrUserExists
+	}
+
+	if err != mongo.ErrNoDocuments {
+		return err
+	}
+	_, err = ms.users().InsertOne(context.TODO(), User{UID: new_user})
+
+	return err
+}
+
+func (ms *MetaStore) DeleteUser(old_user User_ID) error {
+	filter := bson.M{"uid": old_user}
+	res, err := ms.users().DeleteOne(context.TODO(), filter)
+
+	if err != nil {
+		return err
+	}
+
+	if res.DeletedCount == 0 {
+		return ErrUserDoesNotExist
+	}
+
+	updateRequest := bson.M{"$pull": bson.M{"users": old_user}}
+
+	// Delete user from all namespaces.
+	_, err = ms.namespaces().UpdateMany(context.TODO(),
+		bson.D{}, updateRequest)
+
+	return err
+
+	// TODO -------------
+	// NOTE, we will also need some serverside
+	// script which deletes all namespaces which have no
+	// users. This could be done here, but might be
+	// slow.
+	// Deleting a Namespace requires some work...
+	// ------------------
+}
+
+// TODO -------------- Get File Location
+// TODO -------------- Set File Location
+
+func (ms *MetaStore) CreateNamespace(name string,
+	member User_ID) (Namespace_ID, error) {
+	err := ms.users().FindOne(context.TODO(),
+		bson.M{"uid": member}).Err()
+
+	if err == mongo.ErrNoDocuments {
+		return Nil_Namespace_ID, ErrUserDoesNotExist
+	}
+
+	if err != nil {
+		return Nil_Namespace_ID, err
+	}
+
+	// After confirming the user exists, we must create
+	// a unique Namespace_ID for the new namespace.
+
+	var nsid Namespace_ID
+	for {
+		nsid = Namespace_ID(uuid.New())
+
+		// We need a non nil ID.
+		if nsid == Nil_Namespace_ID {
+			continue
+		}
+
+		// Now check if the ID exists already.
+		err := ms.namespaces().FindOne(context.TODO(),
+			bson.M{"nsid": nsid}).Err()
+
+		if err == mongo.ErrNoDocuments {
+			break // Unique ID has been found.
+		}
+
+		if err != nil {
+			return Nil_Namespace_ID, err
+		}
+
+		// Otherwise, err == nil... Non-Unique ID was made.
+	}
+
+	namespace := Namespace{
+		NSID:  nsid,
+		Name:  name,
+		Users: []User_ID{member},
+	}
+
+	// Finally, upload the Namespace to Mongo.
+	_, err = ms.namespaces().InsertOne(context.TODO(), namespace)
+
+	if err != nil {
+		return Nil_Namespace_ID, err
+	}
+
+	return nsid, nil
+}
+
+func (ms *MetaStore) DeleteNamespace(nsid Namespace_ID, member User_ID) error {
+	// First, does the given user exist.
+	err := ms.users().FindOne(context.TODO(),
+		bson.M{"uid": member}).Err()
+
+	if err == mongo.ErrNoDocuments {
+		return ErrUserDoesNotExist
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// Check if the namespace exists and if the user has access.
+	// NOTE, the user will not be told if a namespace does or does
+	// not exist.
+	filter := bson.M{"nsid": nsid, "users": member}
+	res, err := ms.namespaces().DeleteOne(context.TODO(), filter)
+
+	if err != nil {
+		return err
+	}
+
+	if res.DeletedCount == 0 {
+		return ErrNoAccess
+	}
+
+	return nil
+
+	// TODO -----------------------
+	// Add removal of tags and garbage colleciton
+	// of file objects.
+	// ----------------------------
 }

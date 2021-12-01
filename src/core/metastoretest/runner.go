@@ -1,16 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/hootfs/hootfs/src/core/vfm"
 )
-
-type Person struct {
-	Name     string
-	Siblings []string
-}
 
 func main() {
 	ms, err := vfm.NewMetaStore("Test1")
@@ -24,11 +18,23 @@ func main() {
 		}
 	}()
 
-	err = ms.DeleteMachine(130)
+	err = ms.CreateUser("Chatham")
 
 	if err != nil {
-		fmt.Printf(err.Error())
-	} else {
-		fmt.Printf("Success!")
+		log.Fatal(err)
 	}
+
+	nsid, err := ms.CreateNamespace("NS 3", "Mark")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = ms.DeleteNamespace(nsid, "Chatham")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Print("Success!")
 }

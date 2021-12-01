@@ -15,6 +15,8 @@ var Nil_VO_ID VO_ID
 // This will be the UUID used for Namespaces.
 type Namespace_ID uuid.UUID
 
+var Nil_Namespace_ID Namespace_ID
+
 // User ID will probably be a username/email. (Consult Auth0 for this)
 type User_ID string
 
@@ -176,26 +178,26 @@ type VirtualFileManager interface {
 	// NOTE, this functionality brings up garbage collection relating
 	// issues. For example, when a file no longer belongs to any
 	// Namespaces, should it be deleted from the cluster?
-	//		ns_id	- The Namespace in question.
+	//		nsid	- The Namespace in question.
 	//		member	- The user deleting the Namespace.
-	DeleteNamespace(ns_id Namespace_ID, member User_ID) error
+	DeleteNamespace(nsid Namespace_ID, member User_ID) error
 
 	// Adds a member to a Namespace. One a user is the member of a Namespace,
 	// he or she has access to all objects inside the Namespace. He or she
 	// also has the ability to add other users to the Namespace.
-	//		ns_id		- The Namespace in question.
+	//		nsid		- The Namespace in question.
 	//		recruiter 	- The user adding the recruit. This user must be
 	// 					  a member of the Namespace or else an error will
 	//                    be returned.
 	//		recruit		- The user to add to the Namespace.
-	AddUserToNamespace(ns_id Namespace_ID,
+	AddUserToNamespace(nsid Namespace_ID,
 		recruiter User_ID, recruit User_ID) error
 
 	// Removes a user from a Namespace.
-	//		ns_id	- The Namespace in question.
+	//		nsid	- The Namespace in question.
 	//		axer	- The user performing the remove.
 	//		axed	- The user being removed.
-	RemoveUserFromNamespace(ns_id Namespace_ID,
+	RemoveUserFromNamespace(nsid Namespace_ID,
 		axer User_ID, axed User_ID) error
 
 	// NOTE, a "Root Object" of a namespace N is a directory or file which
@@ -206,45 +208,45 @@ type VirtualFileManager interface {
 	// This file cannot already belong to the given namespace.
 	// If added successfully, the added object will be a Root object of
 	// the namespace.
-	//		ns_id	- The Namespace to add to.
+	//		nsid	- The Namespace to add to.
 	//		member	- The user making the request.
 	//		object	- The object to add to the namespace.
 	//				  This object cannot already belong to the Namespace.
-	AddObjectToNamespace(ns_id Namespace_ID,
+	AddObjectToNamespace(nsid Namespace_ID,
 		member User_ID, object VO_ID) error
 
 	// Remove an object from a Namespace. Removing a folder from a Namespace
 	// will remove all of its contents from the Namespace as well.
 	// If this object is not a "root object" of the Namespace it is
 	// being removed from, an error will be returned.
-	//		ns_id	- The Namespace to add to.
+	//		nsid	- The Namespace to add to.
 	//		member	- The user making the request.
 	//		object	- The object to remove from the namespace.
-	RemoveObjectFromNamespace(ns_id Namespace_ID, member User_ID,
+	RemoveObjectFromNamespace(nsid Namespace_ID, member User_ID,
 		object VO_ID) error
 
 	// Create a freestanding Directory in a namespace.
 	// I.e. a directory which belongs to no parent directory.
 	// By definition, this will be a root object of the namespace.
-	//		ns_id	- The Namespace to add to.
+	//		nsid	- The Namespace to add to.
 	//		member	- The user making the request.
 	//		name	- The name of the new directory.
-	CreateFreeDirInNamespace(ns_id Namespace_ID, member User_ID,
+	CreateFreeDirInNamespace(nsid Namespace_ID, member User_ID,
 		name string) (VO_ID, error)
 
 	// Create a freestanding file in a namespace.
 	// This file will belong to no parent directory.
 	// Again, this will be a root object of the namespace.
-	//		ns_id	- The Namespace to add to.
+	//		nsid	- The Namespace to add to.
 	//		member	- The user making the request.
 	//		name	- The name of the new file.
-	CreateFreeFileInNamespace(ns_id Namespace_ID, member User_ID,
+	CreateFreeFileInNamespace(nsid Namespace_ID, member User_ID,
 		name string) (VO_ID, error)
 
 	// Get the IDs of every root object in a given name space.
-	// 		ns_id	- The Namespace in question.
+	// 		nsid	- The Namespace in question.
 	//		member	- The user making the request.
-	GetNamespaceRoots(ns_id Namespace_ID, member User_ID) ([]VO_ID, error)
+	GetNamespaceRoots(nsid Namespace_ID, member User_ID) ([]VO_ID, error)
 
 	// NOTE, for the next two functions...
 	// Creating a directory or file will add said object to the
