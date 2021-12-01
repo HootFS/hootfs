@@ -137,6 +137,7 @@ var (
 	ErrUserDoesNotExist    = errors.New("User does not exist!")
 	ErrNoAccess            = errors.New("Unable to access namespace!")
 	ErrAccess              = errors.New("Namespace is accessible!")
+	ErrNoUserInNamespace   = errors.New("Cannot find user in namespace!")
 )
 
 // Virtual File Manager Interface Methods Below .............
@@ -267,18 +268,6 @@ func (ms *MetaStore) CreateNamespace(name string,
 }
 
 func (ms *MetaStore) DeleteNamespace(nsid Namespace_ID, member User_ID) error {
-	// First, does the given user exist.
-	err := ms.users().FindOne(context.TODO(),
-		bson.M{"uid": member}).Err()
-
-	if err == mongo.ErrNoDocuments {
-		return ErrUserDoesNotExist
-	}
-
-	if err != nil {
-		return err
-	}
-
 	// Check if the namespace exists and if the user has access.
 	// NOTE, the user will not be told if a namespace does or does
 	// not exist.
@@ -298,11 +287,52 @@ func (ms *MetaStore) DeleteNamespace(nsid Namespace_ID, member User_ID) error {
 	// TODO -----------------------
 	// Add removal of tags and garbage colleciton
 	// of file objects.
+	// I.e. remove this namespace from all existing files!
 	// ----------------------------
 }
 
-// func (ms *MetaStore) AddUserToNamespace(nsid Namespace_ID, recruiter User_ID,
-// 	recruit User_ID) error {
-// 	// First off, does the recruiter exist?
-// 	err :=
-// }
+func (ms *MetaStore) AddUserToNamespace(nsid Namespace_ID, recruiter User_ID,
+	recruit User_ID) error {
+	// First, check if the recruit is a real user.
+	if err := ms.CheckUser(recruit, nil, ErrUserDoesNotExist); err != nil {
+		return err
+	}
+
+	// Next, attempt to update the requested namespace.
+	res, err := ms.namespaces().UpdateOne(context.TODO(),
+		bson.M{"nsid": nsid, "users": recruiter},
+		bson.M{"$push": bson.M{"users": recruit}})
+
+	if err != nil {
+		return err
+	}
+
+	// This is the situation where no document was updated.
+	// I.e. no namespace could be found with the given credentials.
+	if res.MatchedCount == 0 {
+		return ErrNoAccess
+	}
+
+	// Success!
+	return nil
+}
+
+func (ms *MetaStore) RemoveUserFromNamespace(nsid Namespace_ID,
+	axer User_ID, axed User_ID) error {
+	// First see if the axer has permission to modify the namespace.
+	if err := ms.CheckNamespace(nsid, axer, nil, ErrNoAccess); err != nil {
+		return err
+	}
+
+	// Next make sure the give user being axed exists in the namespace.
+	err := ms.CheckNamespace(nsid, axed, nil, ErrNoUserInNamespace)
+	if err != nil {
+		return err
+	}
+
+	_, err = ms.namespaces().UpdateOne(context.TODO(),
+		bson.M{"nsid": nsid, "users": axer},
+		bson.M{"$pull": bson.M{"users": axed}})
+
+	return err
+}
