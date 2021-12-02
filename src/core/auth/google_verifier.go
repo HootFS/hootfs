@@ -31,7 +31,8 @@ func (g Google_verifier) Authenticate(ctx context.Context) (context.Context, err
 	if !isValid {
 		return nil, fmt.Errorf("Error while logging in. \n %s", err)
 	}
-	return ctx, nil
+	newCtx := context.WithValue(ctx, "userInfo", username)
+	return newCtx, nil
 }
 
 func (g Google_verifier) get_username(ctx context.Context) string {
