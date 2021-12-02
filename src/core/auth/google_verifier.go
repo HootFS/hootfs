@@ -3,6 +3,9 @@ package google_verifer
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -18,12 +21,25 @@ func New(url string) Google_verifier {
 }
 
 func (g Google_verifier) Authenticate(ctx context.Context) (context.Context, error) {
-	print("Triggered Auth")
-	log.Println("TRIGGERED")
+
+	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+	if err == nil {
+		log.Println("token: ", token)
+	}
+	username := g.get_username(ctx)
+	isValid, err := g.VerifyAccessToken(token, username)
+	if !isValid {
+		return nil, fmt.Errorf("Error while logging in. \n %s", err)
+	}
 	return ctx, nil
 }
 
-func (g Google_verifier) VerifyAccessToken(token string, username string) bool {
+func (g Google_verifier) get_username(ctx context.Context) string {
+	val := metautils.ExtractIncoming(ctx).Get("username")
+	return val
+}
+
+func (g Google_verifier) VerifyAccessToken(token string, username string) (bool, error) {
 	//Reference: https://stackoverflow.com/questions/51452148/how-can-i-make-a-request-with-a-bearer-token-in-go
 	var bearer = "Bearer " + token
 
@@ -46,12 +62,12 @@ func (g Google_verifier) VerifyAccessToken(token string, username string) bool {
 	if err != nil {
 		log.Println("Could not parse the json: ", err)
 	}
-
 	var result map[string]interface{}
 	err = json.Unmarshal(body, &result)
 
 	if err != nil {
 		log.Println("Could not unmarshal the json: ", err)
+		return false, fmt.Errorf(string(body))
 	}
 
 	//for key, value := range result {
@@ -61,9 +77,9 @@ func (g Google_verifier) VerifyAccessToken(token string, username string) bool {
 
 	if username == result["email"].(string) {
 		log.Println("User successfully authenticated: ", username)
-		return true
+		return true, nil
 	} else {
 		print("Could not verify user.")
-		return false
+		return false, nil
 	}
 }
