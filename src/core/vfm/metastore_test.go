@@ -21,6 +21,15 @@ func ExpectErr(t *testing.T, actual error, expected error) {
 	}
 }
 
+var ErrConditionNotMet = errors.New("Condition not met!")
+
+func ExpectTrue(t *testing.T, res bool) {
+	if !res {
+		t.Log("Condition Not Met!")
+		t.Fatal(ErrConditionNotMet)
+	}
+}
+
 // We have this test all function to ensure clean up occurs at
 // the end of the test
 func TestAll(t *testing.T) {
@@ -245,5 +254,61 @@ func TestAll(t *testing.T) {
 		FatalIfErr(t, ms.CheckVObjectNamespace(void3, nsid2, nil, ErrNoAccess))
 		FatalIfErr(t, ms.CheckVObjectNamespace(void4, nsid2, nil, ErrNoAccess))
 	})
+
+	t.Run("Removal From Namespace", func(t *testing.T) {
+		FatalIfErr(t, ms.CreateUser("Rico"))
+
+		nsid1, err := ms.CreateNamespace("NS 1", "Rico")
+		FatalIfErr(t, err)
+
+		void1, err := ms.CreateFreeObjectInNamespace(nsid1, "Rico",
+			"Folder 1", VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		void2, err := ms.CreateObject(void1, "Rico", "Folder 2", VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		void3, err := ms.CreateObject(void2, "Rico", "File 1", VFM_File_Type)
+		FatalIfErr(t, err)
+
+		FatalIfErr(t, ms.CreateUser("Brad"))
+
+		nsid2, err := ms.CreateNamespace("NS 2", "Brad")
+		FatalIfErr(t, err)
+
+		FatalIfErr(t, ms.AddUserToNamespace(nsid2, "Brad", "Rico"))
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid2, "Rico", void2))
+
+		ExpectErr(t, ms.RemoveObjectFromNamespace(nsid2, "Rico", void3),
+			ErrNotRoot)
+		ExpectErr(t, ms.RemoveObjectFromNamespace(nsid1, "Brad", void1),
+			ErrNoAccess)
+
+		err = ms.RemoveObjectFromNamespace(nsid2, "Rico", void2)
+		FatalIfErr(t, err)
+
+		FatalIfErr(t, ms.CheckVObjectAccess(void2, "Brad", ErrAccess, nil))
+		FatalIfErr(t, ms.CheckVObjectAccess(void3, "Brad", ErrAccess, nil))
+		FatalIfErr(t, ms.CheckVObjectAccess(void2, "Rico", nil, ErrNoAccess))
+		FatalIfErr(t, ms.CheckVObjectAccess(void3, "Rico", nil, ErrNoAccess))
+	})
+
+	t.Run("Namespace Details", func(t *testing.T) {
+		FatalIfErr(t, ms.CreateUser("Joey"))
+
+		nsid, err := ms.CreateNamespace("NS 1", "Joey")
+		FatalIfErr(t, err)
+
+		void, err := ms.CreateFreeObjectInNamespace(nsid, "Joey",
+			"Folder 1", VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		namespace, err := ms.GetNamespaceDetails(nsid, "Joey")
+		ExpectTrue(t, namespace.NSID == nsid)
+		ExpectTrue(t, namespace.Name == "NS 1")
+		ExpectTrue(t, namespace.RootObjects[0] == void)
+		ExpectTrue(t, namespace.Users[0] == "Joey")
+	})
+
 	FatalIfErr(t, ms.Disconnect())
 }

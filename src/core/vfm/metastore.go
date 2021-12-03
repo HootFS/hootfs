@@ -122,6 +122,7 @@ func (ms *MetaStore) CheckUser(user User_ID, found error,
 		found, not_found)
 }
 
+// Confirm a namespace with the given nsid and user exists.
 func (ms *MetaStore) CheckNamespace(nsid Namespace_ID, member User_ID,
 	found error, not_found error) error {
 	return checkHelper(ms.namespaces().FindOne(context.TODO(),
@@ -230,6 +231,11 @@ func (ms *MetaStore) CheckVObjectNamespace(void VO_ID, nsid Namespace_ID,
 	return not_found
 }
 
+func (ms *MetaStore) AccumulateAccessibleNamespaces(void VO_ID,
+	member User_ID) ([]Namespace_ID, error) {
+	return nil, nil
+}
+
 // Check to see if an object exists, and if a user has access to it.
 func (ms *MetaStore) CheckVObjectAccessAndExists(void VO_ID, member User_ID,
 	found error, not_found error) error {
@@ -287,6 +293,7 @@ var (
 	ErrVObjectFound        = errors.New("Virtual object found!")
 	ErrNotADirectory       = errors.New("Not a directory!")
 	ErrObjectInNamespace   = errors.New("Already in namespace!")
+	ErrNotRoot             = errors.New("Virtual object not a root!")
 )
 
 // Virtual File Manager Interface Methods Below .............
@@ -657,12 +664,81 @@ func (ms *MetaStore) TagObject(nsid Namespace_ID, void VO_ID, add bool) error {
 		bson.M{operation: bson.M{"rootobjects": void}}))
 }
 
-// TODO ---------------------------------
-// RemoveObjectFromNamespace(nsid Namespace_ID, member User_ID,
-// 	object VO_ID) error
+func (ms *MetaStore) RemoveObjectFromNamespace(nsid Namespace_ID,
+	member User_ID, void VO_ID) error {
+	// First check if this object exists and if the user has access to it.
+	err := ms.CheckVObjectAccessAndExists(void, member, nil, ErrNoAccess)
+	if err != nil {
+		return err
+	}
 
-// TODO -------------------------------
-// GetNamespaceDetails(nsid Namespace_ID, member User_ID) (*Namespace, error)
+	// Next check if the user has access to the given nsid.
+	err = ms.CheckNamespace(nsid, member, nil, ErrNoAccess)
+	if err != nil {
+		return err
+	}
+
+	var vobject VObject
+	if err = ms.DecodeExistingVObject(void, &vobject); err != nil {
+		return err
+	}
+
+	if !vobject.IsRootOf(nsid) {
+		return ErrNotRoot
+	}
+
+	// At this point, we know we are working with a root object of a
+	// namespace the user has access to.
+
+	// Untag the object.
+	if err = ms.TagObject(nsid, void, false); err != nil {
+		return err
+	}
+
+	// If nsid was the only nsid vobject was the root of, we must
+	// make sure to reroute all subobjects!
+	if vobject.IsDir && len(vobject.Namespaces) == 1 {
+		for _, svoid := range vobject.SubObjects {
+			// We don't want to do any namespace manipulation of these
+			// subobjects, so we use the Nil_Namespace_ID here...
+			err = ms.RerouteVObject(Nil_Namespace_ID, vobject.ClosestRoot,
+				svoid, true)
+
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (ms *MetaStore) GetNamespaceDetails(nsid Namespace_ID,
+	member User_ID) (*Namespace, error) {
+	// First make sure the user has access to the given namespace.
+	if err := ms.CheckNamespace(nsid, member, nil, ErrNoAccess); err != nil {
+		return nil, err
+	}
+
+	res := ms.namespaces().FindOne(context.TODO(),
+		bson.M{"nsid": nsid})
+
+	if res.Err() == mongo.ErrNoDocuments {
+		return nil, ErrInternal
+	}
+
+	if res.Err() != nil {
+		return nil, res.Err()
+	}
+
+	var namespace Namespace
+	err := res.Decode(&namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	return &namespace, nil
+}
 
 func (ms *MetaStore) CreateObject(parent VO_ID, member User_ID, name string,
 	tp VFM_Object_Type) (VO_ID, error) {
@@ -789,4 +865,15 @@ func (ms *MetaStore) DirectDeleteObject(void VO_ID) error {
 
 	// Success!
 	return nil
+}
+
+func (ms *MetaStore) GetObjectDetails(void VO_ID,
+	member User_ID) (*VFM_Object, error) {
+	// First off, does user have access to this object.
+	err := ms.CheckVObjectAccessAndExists(void, member, nil, ErrNoAccess)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, err
 }

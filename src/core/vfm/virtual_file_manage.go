@@ -24,6 +24,12 @@ type User_ID string
 // probably the best option.
 type Machine_ID uint64
 
+// Small portion of namespace information.
+type Namespace_Stub struct {
+	NSID Namespace_ID
+	Name string
+}
+
 // All namespace information accessible by a user.
 type Namespace struct {
 	NSID        Namespace_ID
@@ -57,7 +63,7 @@ type VFM_Object_Stub struct {
 	// list Namespaces which are not known to the user.
 	// I.e. Namespaces this object belongs to, but its parent
 	// does not.
-	Namespaces []Namespace_ID
+	Namespaces []Namespace_Stub
 
 	Type VFM_Object_Type
 }
@@ -82,7 +88,7 @@ type VFM_Object interface {
 	// NOTE, the details of an object will usually be requested
 	// by a user. This call should not return the IDs of every namespace
 	// this Object belongs to.
-	GetNamespaces() []Namespace_ID
+	GetNamespaces() []Namespace_Stub
 
 	GetObjectType() VFM_Object_Type
 	GetSubObjects() ([]VFM_Object_Stub, error)
@@ -92,7 +98,7 @@ type VFM_Header struct {
 	id         VO_ID
 	parent_id  VO_ID
 	name       string
-	namespaces []Namespace_ID
+	namespaces []Namespace_Stub
 }
 
 func (h VFM_Header) GetID() VO_ID {
@@ -113,7 +119,7 @@ func (h VFM_Header) GetName() string {
 	return h.name
 }
 
-func (h VFM_Header) GetNamespaces() []Namespace_ID {
+func (h VFM_Header) GetNamespaces() []Namespace_Stub {
 	return h.namespaces
 }
 
