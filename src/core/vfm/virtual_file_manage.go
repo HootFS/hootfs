@@ -230,10 +230,10 @@ type VirtualFileManager interface {
 	// the namespace.
 	//		nsid	- The Namespace to add to.
 	//		member	- The user making the request.
-	//		object	- The object to add to the namespace.
+	//		void	- The object to add to the namespace.
 	//				  This object cannot already belong to the Namespace.
 	AddObjectToNamespace(nsid Namespace_ID,
-		member User_ID, object VO_ID) error
+		member User_ID, void VO_ID) error
 
 	// Remove an object from a Namespace. Removing a folder from a Namespace
 	// will remove all of its contents from the Namespace as well.
@@ -241,9 +241,9 @@ type VirtualFileManager interface {
 	// being removed from, an error will be returned.
 	//		nsid	- The Namespace to add to.
 	//		member	- The user making the request.
-	//		object	- The object to remove from the namespace.
+	//		void	- The object to remove from the namespace.
 	RemoveObjectFromNamespace(nsid Namespace_ID, member User_ID,
-		object VO_ID) error
+		void VO_ID) error
 
 	// Get the IDs of every root object in a given name space.
 	// 		nsid	- The Namespace in question.

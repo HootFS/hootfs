@@ -16,6 +16,7 @@ var ErrIncorrectError = errors.New("Expected error was not thrown!")
 
 func ExpectErr(t *testing.T, actual error, expected error) {
 	if actual != expected {
+		t.Logf("Actual Error : %s\n", actual.Error())
 		t.Fatal(ErrIncorrectError)
 	}
 }
@@ -28,6 +29,9 @@ func TestAll(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Drop in the beginning is better.
+	FatalIfErr(t, ms.db.Drop(context.TODO()))
 
 	t.Run("Machine Addition", func(t *testing.T) {
 		FatalIfErr(t, ms.CreateMachine(0))
@@ -185,6 +189,61 @@ func TestAll(t *testing.T) {
 		ExpectErr(t, err, ErrNotADirectory)
 	})
 
-	FatalIfErr(t, ms.db.Drop(context.TODO()))
+	t.Run("Simple Object Deletion", func(t *testing.T) {
+		FatalIfErr(t, ms.CreateUser("Marco"))
+
+		nsid, err := ms.CreateNamespace("NS 1", "Marco")
+		FatalIfErr(t, err)
+
+		void, err := ms.CreateFreeObjectInNamespace(nsid, "Marco", "Folder 1",
+			VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		ExpectErr(t, ms.DeleteObject(void, "Billy"), ErrNoAccess)
+		FatalIfErr(t, ms.DeleteObject(void, "Marco"))
+
+		FatalIfErr(t, ms.CheckVObject(void, ErrVObjectFound, nil))
+		FatalIfErr(t, ms.CheckRoot(nsid, void, ErrVObjectFound, nil))
+	})
+
+	t.Run("Addition To Namespace", func(t *testing.T) {
+		FatalIfErr(t, ms.CreateUser("David"))
+		FatalIfErr(t, ms.CreateUser("Paul"))
+
+		nsid1, err := ms.CreateNamespace("NS 1", "David")
+		FatalIfErr(t, err)
+
+		void1, err := ms.CreateFreeObjectInNamespace(nsid1, "David", "Folder 1",
+			VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		ExpectErr(t, ms.AddObjectToNamespace(nsid1, "David", void1),
+			ErrObjectInNamespace)
+
+		void2, err := ms.CreateObject(void1, "David", "Folder 2", VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		void3, err := ms.CreateObject(void2, "David", "File 1", VFM_File_Type)
+		FatalIfErr(t, err)
+
+		void4, err := ms.CreateObject(void2, "David", "File 2", VFM_File_Type)
+		FatalIfErr(t, err)
+
+		nsid2, err := ms.CreateNamespace("NS 2", "David")
+		FatalIfErr(t, err)
+
+		ExpectErr(t, ms.AddObjectToNamespace(nsid2, "Paul", void2), ErrNoAccess)
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid2, "David", void2))
+
+		FatalIfErr(t, ms.CheckVObjectNamespace(void2, nsid2, nil, ErrNoAccess))
+		FatalIfErr(t, ms.CheckVObjectNamespace(void3, nsid2, nil, ErrNoAccess))
+		FatalIfErr(t, ms.CheckVObjectNamespace(void4, nsid2, nil, ErrNoAccess))
+
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid2, "David", void1))
+
+		FatalIfErr(t, ms.CheckVObjectNamespace(void2, nsid2, nil, ErrNoAccess))
+		FatalIfErr(t, ms.CheckVObjectNamespace(void3, nsid2, nil, ErrNoAccess))
+		FatalIfErr(t, ms.CheckVObjectNamespace(void4, nsid2, nil, ErrNoAccess))
+	})
 	FatalIfErr(t, ms.Disconnect())
 }
