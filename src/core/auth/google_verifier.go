@@ -15,12 +15,12 @@ type Google_verifier struct {
 	Url string
 }
 
-func New(url string) Google_verifier {
+func New(url string) *Google_verifier {
 	googleV := Google_verifier{url}
-	return googleV
+	return &googleV
 }
 
-func (g Google_verifier) Authenticate(ctx context.Context) (context.Context, error) {
+func (g *Google_verifier) Authenticate(ctx context.Context) (context.Context, error) {
 
 	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
 	if err == nil {
@@ -35,12 +35,12 @@ func (g Google_verifier) Authenticate(ctx context.Context) (context.Context, err
 	return newCtx, nil
 }
 
-func (g Google_verifier) get_username(ctx context.Context) string {
+func (g *Google_verifier) get_username(ctx context.Context) string {
 	val := metautils.ExtractIncoming(ctx).Get("username")
 	return val
 }
 
-func (g Google_verifier) VerifyAccessToken(token string, username string) (bool, error) {
+func (g *Google_verifier) VerifyAccessToken(token string, username string) (bool, error) {
 	//Reference: https://stackoverflow.com/questions/51452148/how-can-i-make-a-request-with-a-bearer-token-in-go
 	var bearer = "Bearer " + token
 
@@ -71,12 +71,8 @@ func (g Google_verifier) VerifyAccessToken(token string, username string) (bool,
 		return false, fmt.Errorf(string(body))
 	}
 
-	//for key, value := range result {
-	//	// Each value is an interface{} type, that is type asserted as a string
-	//	fmt.Println(key, value)
-	//}
 
-	if username == result["email"].(string) {
+	if email, ok := result["email"]; ok && username == email.(string) {
 		log.Println("User successfully authenticated: ", username)
 		return true, nil
 	} else {

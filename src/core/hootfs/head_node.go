@@ -91,7 +91,7 @@ func (fms *HootFsServer) StartServer() error {
 	var opts []grpc.ServerOption
 	opts = append(opts, grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(verifier.Authenticate)))
 	s := grpc.NewServer(opts...)
-	print("Server started")
+	log.Println("Server started")
 	head.RegisterHootFsServiceServer(s, fms)
 
 	// Join the discovery server.
