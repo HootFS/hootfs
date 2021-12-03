@@ -3,6 +3,7 @@ package vfm
 import (
 	"context"
 	"errors"
+	"log"
 	"testing"
 )
 
@@ -308,6 +309,20 @@ func TestAll(t *testing.T) {
 		ExpectTrue(t, namespace.Name == "NS 1")
 		ExpectTrue(t, namespace.RootObjects[0] == void)
 		ExpectTrue(t, namespace.Users[0] == "Joey")
+	})
+
+	t.Run("Object Details", func(t *testing.T) {
+		FatalIfErr(t, ms.CreateUser("Jess"))
+
+		nsid, err := ms.CreateNamespace("NS 1", "Jess")
+		FatalIfErr(t, err)
+
+		void, err := ms.CreateFreeObjectInNamespace(nsid, "Jess",
+			"Folder 1", VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		acc, err := ms.GetAccessibleNamespaces(void, "Jess")
+		log.Println(acc)
 	})
 
 	FatalIfErr(t, ms.Disconnect())

@@ -875,5 +875,49 @@ func (ms *MetaStore) GetObjectDetails(void VO_ID,
 		return nil, err
 	}
 
+	var vobject VObject
+	err = ms.DecodeExistingVObject(void, &vobject)
+
+	// First get all Namespaces which void belongs to
+	// that member has access to.
+
 	return nil, err
+}
+
+// Accumulate all namespaces void belongs to which member has access
+// to.
+func (ms *MetaStore) GetAccessibleNamespaces(void VO_ID,
+	member User_ID) ([]Namespace_Stub, error) {
+	var accessible []Namespace_Stub
+	curr_root := void
+	for curr_root != Nil_VO_ID {
+		var vobject VObject
+		err := ms.DecodeExistingVObject(curr_root, &vobject)
+		if err != nil {
+			return nil, err
+		}
+
+		cursor, err := ms.namespaces().Find(context.TODO(),
+			bson.M{"nsid": bson.M{"$in": vobject.Namespaces}, "users": member})
+		defer cursor.Close(context.TODO())
+
+		if err != nil {
+			return nil, err
+		}
+
+		var found []Namespace
+		if err = cursor.All(context.TODO(), &found); err != nil {
+			return nil, err
+		}
+
+		for _, ns := range found {
+			accessible = append(accessible,
+				Namespace_Stub{NSID: ns.NSID, Name: ns.Name},
+			)
+		}
+
+		curr_root = vobject.ClosestRoot
+	}
+
+	return accessible, nil
 }
