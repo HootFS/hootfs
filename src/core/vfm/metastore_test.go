@@ -3,7 +3,6 @@ package vfm
 import (
 	"context"
 	"errors"
-	"log"
 	"testing"
 )
 
@@ -35,10 +34,7 @@ func ExpectTrue(t *testing.T, res bool) {
 // the end of the test
 func TestAll(t *testing.T) {
 	ms, err := NewMetaStore("TESTING-DB")
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	FatalIfErr(t, err)
 
 	// Drop in the beginning is better.
 	FatalIfErr(t, ms.db.Drop(context.TODO()))
@@ -75,6 +71,23 @@ func TestAll(t *testing.T) {
 		ExpectErr(t, ms.DeleteUser("Matt"), ErrUserDoesNotExist)
 	})
 
+	t.Run("File Locations", func(t *testing.T) {
+		FatalIfErr(t, ms.CreateUser("Dany"))
+		nsid, err := ms.CreateNamespace("NS 1", "Dany")
+		FatalIfErr(t, err)
+
+		void, err := ms.CreateFreeObjectInNamespace(nsid, "Dany", "File 1",
+			VFM_File_Type)
+		FatalIfErr(t, err)
+
+		ExpectErr(t, ms.SetFileLocations(void, []Machine_ID{1, 2}),
+			ErrMachineDoesNotExist)
+
+		FatalIfErr(t, ms.CreateMachine(3))
+		FatalIfErr(t, ms.CreateMachine(4))
+		FatalIfErr(t, ms.SetFileLocations(void, []Machine_ID{3, 4}))
+	})
+
 	t.Run("Namespace Addition", func(t *testing.T) {
 		FatalIfErr(t, ms.CreateUser("Paula"))
 
@@ -87,16 +100,31 @@ func TestAll(t *testing.T) {
 
 	t.Run("Namespace Removal", func(t *testing.T) {
 		FatalIfErr(t, ms.CreateUser("Bob"))
+		FatalIfErr(t, ms.CreateUser("Lola"))
 
-		nsid, err := ms.CreateNamespace("NS 1", "Bob")
+		nsid1, err := ms.CreateNamespace("NS 1", "Bob")
 		FatalIfErr(t, err)
 
-		ExpectErr(t, ms.DeleteNamespace(nsid, "Mark"), ErrNoAccess)
+		FatalIfErr(t, ms.AddUserToNamespace(nsid1, "Bob", "Lola"))
 
-		FatalIfErr(t, ms.DeleteNamespace(nsid, "Bob"))
-		FatalIfErr(t, ms.CheckNamespace(nsid, "Bob", ErrAccess, nil))
+		nsid2, err := ms.CreateNamespace("NS 2", "Lola")
+		FatalIfErr(t, err)
 
-		ExpectErr(t, ms.DeleteNamespace(nsid, "Bob"), ErrNoAccess)
+		void1, err := ms.CreateFreeObjectInNamespace(nsid1, "Bob", "File 1",
+			VFM_File_Type)
+		FatalIfErr(t, err)
+
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid2, "Lola", void1))
+
+		ExpectErr(t, ms.DeleteNamespace(nsid1, "Mark"), ErrNoAccess)
+
+		FatalIfErr(t, ms.DeleteNamespace(nsid1, "Bob"))
+		FatalIfErr(t, ms.CheckNamespace(nsid1, "Bob", ErrAccess, nil))
+
+		ExpectErr(t, ms.DeleteNamespace(nsid1, "Bob"), ErrNoAccess)
+
+		FatalIfErr(t, ms.CheckVObjectAccess(void1, "Bob", ErrAccess, nil))
+		FatalIfErr(t, ms.CheckVObjectAccess(void1, "Lola", nil, ErrNoAccess))
 	})
 
 	t.Run("Namespace Permission Addition", func(t *testing.T) {
@@ -312,17 +340,51 @@ func TestAll(t *testing.T) {
 	})
 
 	t.Run("Object Details", func(t *testing.T) {
-		FatalIfErr(t, ms.CreateUser("Jess"))
+		FatalIfErr(t, ms.CreateUser("Houston"))
+		FatalIfErr(t, ms.CreateUser("Dallas"))
 
-		nsid, err := ms.CreateNamespace("NS 1", "Jess")
+		nsid1, err := ms.CreateNamespace("NS 1", "Houston")
+		FatalIfErr(t, err)
+		FatalIfErr(t, ms.AddUserToNamespace(nsid1, "Houston", "Dallas"))
+
+		nsid2, err := ms.CreateNamespace("NS 2", "Houston")
 		FatalIfErr(t, err)
 
-		void, err := ms.CreateFreeObjectInNamespace(nsid, "Jess",
+		nsid3, err := ms.CreateNamespace("NS 3", "Dallas")
+		FatalIfErr(t, err)
+
+		nsid4, err := ms.CreateNamespace("NS 4", "Houston")
+		FatalIfErr(t, err)
+
+		void1, err := ms.CreateFreeObjectInNamespace(nsid1, "Houston",
 			"Folder 1", VFM_Dir_Type)
 		FatalIfErr(t, err)
 
-		acc, err := ms.GetAccessibleNamespaces(void, "Jess")
-		log.Println(acc)
+		void2, err := ms.CreateObject(void1, "Houston",
+			"Folder 2", VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		void3, err := ms.CreateObject(void2, "Houston", "File 1",
+			VFM_File_Type)
+
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid2, "Houston", void2))
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid3, "Dallas", void2))
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid4, "Houston", void3))
+
+		obj1_h, err := ms.GetObjectDetails(void1, "Houston")
+		FatalIfErr(t, err)
+
+		ExpectTrue(t, obj1_h.GetID() == void1)
+		sobjects1_h, _ := obj1_h.GetSubObjects()
+		ExpectTrue(t, sobjects1_h[0].Namespaces[0].NSID == nsid2)
+		ExpectTrue(t, len(sobjects1_h[0].Namespaces) == 1)
+
+		obj2_d, err := ms.GetObjectDetails(void2, "Dallas")
+		FatalIfErr(t, err)
+
+		ExpectTrue(t, len(obj2_d.GetNamespaces()) == 2)
+		sobjects2_d, _ := obj2_d.GetSubObjects()
+		ExpectTrue(t, len(sobjects2_d[0].Namespaces) == 0)
 	})
 
 	FatalIfErr(t, ms.Disconnect())

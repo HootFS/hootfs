@@ -276,5 +276,5 @@ type VirtualFileManager interface {
 	// Get the details of a specific object in the file system.
 	//		obj_id	- The ID of the object in question.
 	//		member 	- The user making the request.
-	GetObjectDetails(void VO_ID, member User_ID) (*VFM_Object, error)
+	GetObjectDetails(void VO_ID, member User_ID) (VFM_Object, error)
 }

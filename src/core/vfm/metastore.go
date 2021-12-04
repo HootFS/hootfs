@@ -371,8 +371,54 @@ func (ms *MetaStore) DeleteUser(old_user User_ID) error {
 	// ------------------
 }
 
-// TODO -------------- Get File Location
-// TODO -------------- Set File Location
+func (ms *MetaStore) GetFileLocations(file_id VO_ID) ([]Machine_ID, error) {
+	res := ms.vobjects().FindOne(context.TODO(),
+		bson.M{"void": file_id})
+
+	if res.Err() == mongo.ErrNoDocuments {
+		return nil, ErrVObjectNotFound
+	}
+
+	if res.Err() != nil {
+		return nil, res.Err()
+	}
+
+	var vobject VObject
+	err := res.Decode(&vobject)
+	if err != nil {
+		return nil, err
+	}
+
+	return vobject.Machines, nil
+}
+
+func (ms *MetaStore) SetFileLocations(file_id VO_ID, locs []Machine_ID) error {
+	// First confirm all given locations are valid.
+	fres, err := ms.machines().Find(context.TODO(),
+		bson.M{"mid": bson.M{"$in": locs}})
+
+	if err != nil {
+		return err
+	}
+
+	if fres.RemainingBatchLength() != len(locs) {
+		return ErrMachineDoesNotExist
+	}
+
+	ures, err := ms.vobjects().UpdateOne(context.TODO(),
+		bson.M{"void": file_id, "isdir": false},
+		bson.M{"$set": bson.M{"machines": locs}})
+
+	if err != nil {
+		return err
+	}
+
+	if ures.MatchedCount == 0 {
+		return ErrVObjectNotFound
+	}
+
+	return nil
+}
 
 func (ms *MetaStore) CreateNamespace(name string,
 	member User_ID) (Namespace_ID, error) {
@@ -429,23 +475,42 @@ func (ms *MetaStore) DeleteNamespace(nsid Namespace_ID, member User_ID) error {
 	// NOTE, the user will not be told if a namespace does or does
 	// not exist.
 	filter := bson.M{"nsid": nsid, "users": member}
-	res, err := ms.namespaces().DeleteOne(context.TODO(), filter)
+	res := ms.namespaces().FindOne(context.TODO(), filter)
+
+	if res.Err() == mongo.ErrNoDocuments {
+		return ErrNoAccess
+	}
+
+	if res.Err() != nil {
+		return res.Err()
+	}
+
+	var namespace Namespace
+	err := res.Decode(&namespace)
+	if err != nil {
+		return err
+	}
+
+	// First remove all Root objects from the namespace.
+	for _, rvoid := range namespace.RootObjects {
+		err := ms.DirectRemoveObjectFromNamespace(nsid, rvoid, ErrInternal)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Finally, delete the namespace itself.
+	dres, err := ms.namespaces().DeleteOne(context.TODO(), filter)
 
 	if err != nil {
 		return err
 	}
 
-	if res.DeletedCount == 0 {
-		return ErrNoAccess
+	if dres.DeletedCount == 0 {
+		return ErrInternal
 	}
 
 	return nil
-
-	// TODO -----------------------
-	// Add removal of tags and garbage colleciton
-	// of file objects.
-	// I.e. remove this namespace from all existing files!
-	// ----------------------------
 }
 
 func (ms *MetaStore) AddUserToNamespace(nsid Namespace_ID, recruiter User_ID,
@@ -678,20 +743,27 @@ func (ms *MetaStore) RemoveObjectFromNamespace(nsid Namespace_ID,
 		return err
 	}
 
+	return ms.DirectRemoveObjectFromNamespace(nsid, void, ErrNotRoot)
+}
+
+// Delete an object from a namespace without checking for user.
+// If the object is not a root of said namespace, not_found is returned.
+func (ms *MetaStore) DirectRemoveObjectFromNamespace(nsid Namespace_ID,
+	void VO_ID, not_found error) error {
 	var vobject VObject
-	if err = ms.DecodeExistingVObject(void, &vobject); err != nil {
+	if err := ms.DecodeExistingVObject(void, &vobject); err != nil {
 		return err
 	}
 
 	if !vobject.IsRootOf(nsid) {
-		return ErrNotRoot
+		return not_found
 	}
 
 	// At this point, we know we are working with a root object of a
 	// namespace the user has access to.
 
 	// Untag the object.
-	if err = ms.TagObject(nsid, void, false); err != nil {
+	if err := ms.TagObject(nsid, void, false); err != nil {
 		return err
 	}
 
@@ -701,7 +773,7 @@ func (ms *MetaStore) RemoveObjectFromNamespace(nsid Namespace_ID,
 		for _, svoid := range vobject.SubObjects {
 			// We don't want to do any namespace manipulation of these
 			// subobjects, so we use the Nil_Namespace_ID here...
-			err = ms.RerouteVObject(Nil_Namespace_ID, vobject.ClosestRoot,
+			err := ms.RerouteVObject(Nil_Namespace_ID, vobject.ClosestRoot,
 				svoid, true)
 
 			if err != nil {
@@ -868,20 +940,72 @@ func (ms *MetaStore) DirectDeleteObject(void VO_ID) error {
 }
 
 func (ms *MetaStore) GetObjectDetails(void VO_ID,
-	member User_ID) (*VFM_Object, error) {
+	member User_ID) (VFM_Object, error) {
 	// First off, does user have access to this object.
 	err := ms.CheckVObjectAccessAndExists(void, member, nil, ErrNoAccess)
 	if err != nil {
 		return nil, err
 	}
 
+	// Next let's get the object itself.
 	var vobject VObject
 	err = ms.DecodeExistingVObject(void, &vobject)
+	if err != nil {
+		return nil, err
+	}
 
-	// First get all Namespaces which void belongs to
-	// that member has access to.
+	// Next, let's get all accessible namespaces from void alone.
+	ns_stubs, err := ms.GetAccessibleNamespaces(void, member)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil, err
+	header := VFM_Header{
+		id:         void,
+		parent_id:  vobject.ParentID,
+		name:       vobject.Name,
+		namespaces: ns_stubs,
+	}
+
+	// If we aren't working with a directory...
+	// stop here.
+	if !vobject.IsDir {
+		return VFM_File{header}, nil
+	}
+
+	// Time to find sub object stubs.
+	var subs []VFM_Object_Stub
+	for _, svoid := range vobject.SubObjects {
+		var sobject VObject
+		err := ms.DecodeExistingVObject(svoid, &sobject)
+		if err != nil {
+			return nil, err
+		}
+
+		access_roots, err := ms.GetAccessibleRootNamespaces(&sobject, member)
+		if err != nil {
+			return nil, err
+		}
+
+		var ty VFM_Object_Type
+		if sobject.IsDir {
+			ty = VFM_Dir_Type
+		} else {
+			ty = VFM_File_Type
+		}
+
+		subs = append(subs, VFM_Object_Stub{
+			Id:         sobject.VOID,
+			Name:       sobject.Name,
+			Namespaces: access_roots,
+			Type:       ty,
+		})
+	}
+
+	return VFM_Directory{
+		header,
+		subs,
+	}, nil
 }
 
 // Accumulate all namespaces void belongs to which member has access
@@ -897,27 +1021,39 @@ func (ms *MetaStore) GetAccessibleNamespaces(void VO_ID,
 			return nil, err
 		}
 
-		cursor, err := ms.namespaces().Find(context.TODO(),
-			bson.M{"nsid": bson.M{"$in": vobject.Namespaces}, "users": member})
-		defer cursor.Close(context.TODO())
-
+		access_roots, err := ms.GetAccessibleRootNamespaces(&vobject, member)
 		if err != nil {
 			return nil, err
 		}
 
-		var found []Namespace
-		if err = cursor.All(context.TODO(), &found); err != nil {
-			return nil, err
-		}
-
-		for _, ns := range found {
-			accessible = append(accessible,
-				Namespace_Stub{NSID: ns.NSID, Name: ns.Name},
-			)
-		}
-
+		accessible = append(accessible, access_roots...)
 		curr_root = vobject.ClosestRoot
 	}
 
 	return accessible, nil
+}
+
+func (ms *MetaStore) GetAccessibleRootNamespaces(vobject *VObject,
+	member User_ID) ([]Namespace_Stub, error) {
+	cursor, err := ms.namespaces().Find(context.TODO(),
+		bson.M{"nsid": bson.M{"$in": vobject.Namespaces}, "users": member})
+	defer cursor.Close(context.TODO())
+
+	if err != nil {
+		return nil, err
+	}
+
+	var found []Namespace
+	if err = cursor.All(context.TODO(), &found); err != nil {
+		return nil, err
+	}
+
+	var access_roots []Namespace_Stub
+	for _, ns := range found {
+		access_roots = append(access_roots,
+			Namespace_Stub{NSID: ns.NSID, Name: ns.Name},
+		)
+	}
+
+	return access_roots, nil
 }
