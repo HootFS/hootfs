@@ -387,5 +387,94 @@ func TestAll(t *testing.T) {
 		ExpectTrue(t, len(sobjects2_d[0].Namespaces) == 0)
 	})
 
-	FatalIfErr(t, ms.Disconnect())
+	// Big tests...
+	t.Run("Big Test 1", BigTest1(ms))
+
+	FatalIfErr(t, ms.Destruct())
+}
+
+func BigTest1(ms *MetaStore) func(t *testing.T) {
+	return func(t *testing.T) {
+
+		FatalIfErr(t, ms.CreateUser("Admin1"))
+		nsida, err := ms.CreateNamespace("NS A", "Admin1")
+		FatalIfErr(t, err)
+
+		void1, err := ms.CreateFreeObjectInNamespace(nsida, "Admin1",
+			"Folder 1", VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		void2, err := ms.CreateObject(void1, "Admin1", "File 1", VFM_File_Type)
+		FatalIfErr(t, err)
+
+		void3, err := ms.CreateObject(void1, "Admin1", "Folder 2", VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		void4, err := ms.CreateObject(void3, "Admin1", "File 2", VFM_File_Type)
+		FatalIfErr(t, err)
+
+		void5, err := ms.CreateObject(void3, "Admin1", "File 3", VFM_File_Type)
+		FatalIfErr(t, err)
+
+		void6, err := ms.CreateFreeObjectInNamespace(nsida, "Admin1",
+			"Folder 3", VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		void7, err := ms.CreateObject(void6, "Admin1", "Folder 4", VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		void8, err := ms.CreateObject(void7, "Admin1", "File 4", VFM_File_Type)
+		FatalIfErr(t, err)
+
+		void9, err := ms.CreateObject(void7, "Admin1", "Folder 5", VFM_Dir_Type)
+		FatalIfErr(t, err)
+
+		FatalIfErr(t, ms.CreateUser("Olivia"))
+		FatalIfErr(t, ms.CreateUser("Amy"))
+		FatalIfErr(t, ms.CreateUser("Owen"))
+
+		nsid1, err := ms.CreateNamespace("NS 1", "Admin1")
+		FatalIfErr(t, err)
+
+		nsid2, err := ms.CreateNamespace("NS 2", "Admin1")
+		FatalIfErr(t, err)
+
+		nsid3, err := ms.CreateNamespace("NS 3", "Admin1")
+		FatalIfErr(t, err)
+
+		FatalIfErr(t, ms.AddUserToNamespace(nsid1, "Admin1", "Olivia"))
+		FatalIfErr(t, ms.AddUserToNamespace(nsid1, "Admin1", "Amy"))
+
+		FatalIfErr(t, ms.AddUserToNamespace(nsid2, "Admin1", "Amy"))
+		FatalIfErr(t, ms.AddUserToNamespace(nsid2, "Admin1", "Owen"))
+
+		FatalIfErr(t, ms.AddUserToNamespace(nsid3, "Admin1", "Owen"))
+
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid1, "Admin1", void2))
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid1, "Admin1", void8))
+
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid2, "Admin1", void1))
+
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid3, "Admin1", void3))
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid3, "Admin1", void7))
+
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid2, "Owen", void9))
+		FatalIfErr(t, ms.DeleteObject(void9, "Amy"))
+
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid1, "Admin1", void6))
+		FatalIfErr(t, ms.DeleteObject(void8, "Olivia"))
+
+		FatalIfErr(t, ms.AddObjectToNamespace(nsid1, "Amy", void5))
+		FatalIfErr(t, ms.DeleteObject(void2, "Owen"))
+		FatalIfErr(t, ms.RemoveObjectFromNamespace(nsid3, "Owen", void3))
+
+		ExpectErr(t, ms.RemoveObjectFromNamespace(nsid2, "Amy", void5),
+			ErrNotRoot)
+
+		_, err = ms.GetObjectDetails(void4, "Olivia")
+		ExpectErr(t, err, ErrNoAccess)
+
+		_, err = ms.CreateObject(void3, "Owen", "File 6", VFM_File_Type)
+		FatalIfErr(t, err)
+	}
 }

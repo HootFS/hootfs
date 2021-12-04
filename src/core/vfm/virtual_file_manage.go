@@ -183,6 +183,9 @@ type VirtualFileManager interface {
 	//		locs		- The new slice of locations.
 	SetFileLocations(file_id VO_ID, locs []Machine_ID) error
 
+	// Function for doing all needed cleanup of a VFM.
+	Destruct() error
+
 	// User Focused Functions ----------------------------------------------
 
 	// This simply creates a new Namespace.

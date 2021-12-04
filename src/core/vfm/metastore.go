@@ -106,7 +106,7 @@ func NewMetaStore(db string) (*MetaStore, error) {
 	}, nil
 }
 
-func (ms *MetaStore) Disconnect() error {
+func (ms *MetaStore) Destruct() error {
 	return ms.client.Disconnect(context.TODO())
 }
 
@@ -325,9 +325,9 @@ func (ms *MetaStore) DeleteMachine(old_machine Machine_ID) error {
 		return ErrMachineDoesNotExist
 	}
 
-	// TODO ----------------------------
-	// Must make sure to delete this machine number from all File Objects!
-	// ---------------------------------
+	_, err = ms.vobjects().UpdateMany(context.TODO(),
+		bson.M{},
+		bson.M{"$pull": bson.M{"machines": old_machine}})
 
 	return err
 }
@@ -1033,6 +1033,8 @@ func (ms *MetaStore) GetAccessibleNamespaces(void VO_ID,
 	return accessible, nil
 }
 
+// Given an object and a user. Retrieve all Namespaces for which
+// the object is a root of and the user has access to.
 func (ms *MetaStore) GetAccessibleRootNamespaces(vobject *VObject,
 	member User_ID) ([]Namespace_Stub, error) {
 	cursor, err := ms.namespaces().Find(context.TODO(),
