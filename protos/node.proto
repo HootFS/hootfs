@@ -1,9 +1,9 @@
 
 syntax = "proto3";
 
-import "head.proto";
-
 package hootfs.node;
+
+import "head.proto";
 
 option go_package = "github.com/hootfs/hootfs/protos";
 
@@ -118,7 +118,6 @@ message RemoveObjectCSResponse {
 }
 
 service ClusterService {
-
   // Procedure calls from a cluster node to another.
 
   rpc MakeDirectoryCS(MakeDirectoryCSRequest) returns (MakeDirectoryCSResponse);

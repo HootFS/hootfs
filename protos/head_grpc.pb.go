@@ -18,6 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type HootFsServiceClient interface {
+	InitializeHootfsClient(ctx context.Context, in *InitializeHootfsClientRequest, opts ...grpc.CallOption) (*InitializeHootfsClientResponse, error)
 	GetDirectoryContents(ctx context.Context, in *GetDirectoryContentsRequest, opts ...grpc.CallOption) (*GetDirectoryContentsResponse, error)
 	MakeDirectory(ctx context.Context, in *MakeDirectoryRequest, opts ...grpc.CallOption) (*MakeDirectoryResponse, error)
 	AddNewFile(ctx context.Context, in *AddNewFileRequest, opts ...grpc.CallOption) (*AddNewFileResponse, error)
@@ -34,6 +35,15 @@ type hootFsServiceClient struct {
 
 func NewHootFsServiceClient(cc grpc.ClientConnInterface) HootFsServiceClient {
 	return &hootFsServiceClient{cc}
+}
+
+func (c *hootFsServiceClient) InitializeHootfsClient(ctx context.Context, in *InitializeHootfsClientRequest, opts ...grpc.CallOption) (*InitializeHootfsClientResponse, error) {
+	out := new(InitializeHootfsClientResponse)
+	err := c.cc.Invoke(ctx, "/hootfs.head.HootFsService/InitializeHootfsClient", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *hootFsServiceClient) GetDirectoryContents(ctx context.Context, in *GetDirectoryContentsRequest, opts ...grpc.CallOption) (*GetDirectoryContentsResponse, error) {
@@ -103,6 +113,7 @@ func (c *hootFsServiceClient) RemoveObject(ctx context.Context, in *RemoveObject
 // All implementations must embed UnimplementedHootFsServiceServer
 // for forward compatibility
 type HootFsServiceServer interface {
+	InitializeHootfsClient(context.Context, *InitializeHootfsClientRequest) (*InitializeHootfsClientResponse, error)
 	GetDirectoryContents(context.Context, *GetDirectoryContentsRequest) (*GetDirectoryContentsResponse, error)
 	MakeDirectory(context.Context, *MakeDirectoryRequest) (*MakeDirectoryResponse, error)
 	AddNewFile(context.Context, *AddNewFileRequest) (*AddNewFileResponse, error)
@@ -118,6 +129,9 @@ type HootFsServiceServer interface {
 type UnimplementedHootFsServiceServer struct {
 }
 
+func (UnimplementedHootFsServiceServer) InitializeHootfsClient(context.Context, *InitializeHootfsClientRequest) (*InitializeHootfsClientResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InitializeHootfsClient not implemented")
+}
 func (UnimplementedHootFsServiceServer) GetDirectoryContents(context.Context, *GetDirectoryContentsRequest) (*GetDirectoryContentsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDirectoryContents not implemented")
 }
@@ -150,6 +164,24 @@ type UnsafeHootFsServiceServer interface {
 
 func RegisterHootFsServiceServer(s grpc.ServiceRegistrar, srv HootFsServiceServer) {
 	s.RegisterService(&HootFsService_ServiceDesc, srv)
+}
+
+func _HootFsService_InitializeHootfsClient_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InitializeHootfsClientRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HootFsServiceServer).InitializeHootfsClient(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/hootfs.head.HootFsService/InitializeHootfsClient",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HootFsServiceServer).InitializeHootfsClient(ctx, req.(*InitializeHootfsClientRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _HootFsService_GetDirectoryContents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -285,6 +317,10 @@ var HootFsService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "hootfs.head.HootFsService",
 	HandlerType: (*HootFsServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "InitializeHootfsClient",
+			Handler:    _HootFsService_InitializeHootfsClient_Handler,
+		},
 		{
 			MethodName: "GetDirectoryContents",
 			Handler:    _HootFsService_GetDirectoryContents_Handler,

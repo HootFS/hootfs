@@ -158,6 +158,9 @@ message RemoveObjectResponse {
 // ------------ Service definition -----------------
 
 service HootFsService {
+  rpc InitializeHootfsClient(InitializeHootfsClientRequest)
+      returns (InitializeHootfsClientResponse);
+
   rpc GetDirectoryContents(GetDirectoryContentsRequest)
       returns (GetDirectoryContentsResponse);
 
