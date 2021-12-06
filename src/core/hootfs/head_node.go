@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	google_verifer "github.com/hootfs/hootfs/src/core/auth"
 	"log"
 	"net"
 	"time"
@@ -11,10 +12,12 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	head "github.com/hootfs/hootfs/protos"
 	cluster "github.com/hootfs/hootfs/src/core/cluster"
 	hootfs "github.com/hootfs/hootfs/src/core/file_storage"
 	discover "github.com/hootfs/hootfs/src/discovery/discover"
+
 	"google.golang.org/grpc"
 )
 
@@ -80,12 +83,15 @@ func (fms *HootFsServer) GetDirectoryContentsAsProto(dirId uuid.UUID) ([]*head.O
 func (fms *HootFsServer) StartServer() error {
 	// First start server.
 	lis, err := net.Listen("tcp", headPort)
+	log.Println("Starting Server")
+	verifier := google_verifer.New("https://dev-dewy8ew9.us.auth0.com/userinfo")
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 	var opts []grpc.ServerOption
+	opts = append(opts, grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(verifier.Authenticate)))
 	s := grpc.NewServer(opts...)
-
+	log.Println("Server started")
 	head.RegisterHootFsServiceServer(s, fms)
 
 	// Join the discovery server.
