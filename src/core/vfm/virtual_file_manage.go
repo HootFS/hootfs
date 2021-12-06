@@ -3,7 +3,7 @@ package vfm
 import (
 	"fmt"
 
-	"go.mongodb.org/mongo-driver/x/mongo/driver/uuid"
+	"github.com/google/uuid"
 )
 
 // This will be the UUID used for all VFM Objects.
