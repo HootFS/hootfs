@@ -29,13 +29,13 @@ const (
 
 // File manager Server must deal with
 // taking requests and pinging discovery server.
-
 type HootFsServer struct {
 	csc cluster.ClusterServiceClient
 	dc  discover.DiscoverClient
 
-	fmg  *hootfs.FileManager
-	vfmg *hootfs.VirtualFileManager
+	fmg     *hootfs.FileManager
+	vfmg    *hootfs.VirtualFileManager
+	ns_root uuid.UUID
 
 	head.UnimplementedHootFsServiceServer
 }
@@ -43,9 +43,10 @@ type HootFsServer struct {
 func NewHootFsServer(dip string, fmg *hootfs.FileManager,
 	vfmg *hootfs.VirtualFileManager) *HootFsServer {
 	return &HootFsServer{
-		dc:   *discover.NewDiscoverClient(dip),
-		fmg:  fmg,
-		vfmg: vfmg,
+		dc:      *discover.NewDiscoverClient(dip),
+		fmg:     fmg,
+		vfmg:    vfmg,
+		ns_root: uuid.Nil,
 	}
 }
 
@@ -138,6 +139,27 @@ func (fms *HootFsServer) StartServer() error {
 
 	// This should never be reached since Serve is blocking.
 	return nil
+}
+
+/**
+ * Initializes a HootFS client, returning the initialized user's namespace ID
+ *
+ */
+func (s *HootFsServer) InitializeHootfsClient(
+	ctx context.Context, request *head.InitializeHootfsClientRequest) (*head.InitializeHootfsClientResponse, error) {
+	if s.ns_root != uuid.Nil {
+		return &head.InitializeHootfsClientResponse{
+			NamespaceRoot: &head.UUID{Value: s.ns_root[:]}}, nil
+	}
+	dir_id, err := s.vfmg.CreateNewNamespace("root_ns")
+	if err != nil {
+		return &head.InitializeHootfsClientResponse{},
+			status.Error(codes.Internal, "Failed to create or find user namespace.")
+	}
+	s.ns_root = dir_id
+
+	return &head.InitializeHootfsClientResponse{
+		NamespaceRoot: &head.UUID{Value: dir_id[:]}}, nil
 }
 
 func (s *HootFsServer) GetDirectoryContents(
