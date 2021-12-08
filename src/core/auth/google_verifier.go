@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 )
 
 type Google_verifier struct {
@@ -26,7 +27,7 @@ func (g *Google_verifier) Authenticate(ctx context.Context) (context.Context, er
 	if err == nil {
 		log.Println("token: ", token)
 	}
-	username := g.get_username(ctx)
+	username := g.GetUsername(ctx)
 	isValid, err := g.VerifyAccessToken(token, username)
 	if !isValid {
 		return nil, fmt.Errorf("Error while logging in. \n %s", err)
@@ -35,7 +36,7 @@ func (g *Google_verifier) Authenticate(ctx context.Context) (context.Context, er
 	return newCtx, nil
 }
 
-func (g *Google_verifier) get_username(ctx context.Context) string {
+func (g *Google_verifier) GetUsername(ctx context.Context) string {
 	val := metautils.ExtractIncoming(ctx).Get("username")
 	return val
 }
@@ -70,7 +71,6 @@ func (g *Google_verifier) VerifyAccessToken(token string, username string) (bool
 		log.Println("Could not unmarshal the json: ", err)
 		return false, fmt.Errorf(string(body))
 	}
-
 
 	if email, ok := result["email"]; ok && username == email.(string) {
 		log.Println("User successfully authenticated: ", username)

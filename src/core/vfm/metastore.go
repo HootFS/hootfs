@@ -420,6 +420,34 @@ func (ms *MetaStore) SetFileLocations(file_id VO_ID, locs []Machine_ID) error {
 	return nil
 }
 
+func (ms *MetaStore) GetNamespaces(member User_ID) ([]Namespace_Stub, error) {
+	if err := ms.CheckUser(member, nil, ErrUserDoesNotExist); err != nil {
+		return nil, err
+	}
+
+	cursor, err := ms.namespaces().Find(context.TODO(), bson.M{"users": member})
+	if err != nil {
+		return nil, err
+	}
+
+	var ns_stubs []Namespace_Stub
+
+	for cursor.Next(context.TODO()) {
+		var ns Namespace
+		err = cursor.Decode(&ns)
+		if err != nil {
+			return nil, err
+		}
+
+		ns_stubs = append(ns_stubs, Namespace_Stub{
+			NSID: ns.NSID,
+			Name: ns.Name,
+		})
+	}
+
+	return ns_stubs, nil
+}
+
 func (ms *MetaStore) CreateNamespace(name string,
 	member User_ID) (Namespace_ID, error) {
 	if err := ms.CheckUser(member, nil, ErrUserDoesNotExist); err != nil {
