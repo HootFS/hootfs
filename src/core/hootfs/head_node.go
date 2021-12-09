@@ -97,7 +97,7 @@ func (fms *HootFsServer) GetDirectoryContentsAsProto(dirId uuid.UUID) ([]*head.O
 
 func (fms *HootFsServer) StartServer() error {
 	// Start cluster server.
-	fms.cs.StartServer()
+	fms.cs.Init()
 
 	// First start server.
 	lis, err := net.Listen("tcp", headPort)
