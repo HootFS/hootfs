@@ -119,8 +119,10 @@ func main() {
 		&head.InitializeHootfsClientRequest{})
 
 	if err != nil {
-		log.Println("Root ID: ", ns_root_id)
+		log.Fatal(err)
 	}
+
+	log.Println("Root ID: ", ns_root_id)
 
 	// // run a "shell" where commands can be typed
 	// sc := bufio.NewScanner(os.Stdin)
