@@ -43,6 +43,7 @@ func (c *ClusterServiceClient) SendAddFile(destId uint64, userId string, parentD
 
 	opts = append(opts, grpc.WithInsecure())
 	log.Println("Dialing ", c.Nodes[destId], " ", port)
+
 	c.rwLock.RLock()
 	conn, err := grpc.Dial(c.Nodes[destId]+port, opts...)
 	c.rwLock.RUnlock()
