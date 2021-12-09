@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"errors"
+	"log"
 	"reflect"
 	"sync"
 
@@ -41,6 +42,7 @@ func (c *ClusterServiceClient) SendAddFile(destId uint64, userId string, parentD
 	var opts []grpc.DialOption
 
 	opts = append(opts, grpc.WithInsecure())
+	log.Println("Dialing ", c.Nodes[destId], " ", port)
 	c.rwLock.RLock()
 	conn, err := grpc.Dial(c.Nodes[destId]+port, opts...)
 	c.rwLock.RUnlock()
