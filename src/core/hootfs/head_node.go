@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	head "github.com/hootfs/hootfs/protos"
 	cluster "github.com/hootfs/hootfs/src/core/cluster"
 	hootfs "github.com/hootfs/hootfs/src/core/file_storage"
@@ -27,6 +26,7 @@ const (
 	headPort          = ":50060"
 	nodePingDurr      = 1
 	nodeGetActiveDurr = 20
+	singleUser        = "Joe"
 )
 
 // File manager Server must deal with
@@ -95,16 +95,16 @@ func (fms *HootFsServer) StartServer() error {
 	// First start server.
 	lis, err := net.Listen("tcp", headPort)
 	log.Println("Starting Server")
-	verifier := google_verifer.New("https://dev-dewy8ew9.us.auth0.com/userinfo")
+	// verifier := google_verifer.New("https://dev-dewy8ew9.us.auth0.com/userinfo")
 
 	// Store verifier in the server.
-	fms.verify = verifier
+	// fms.verify = verifier
 
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 	var opts []grpc.ServerOption
-	opts = append(opts, grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(verifier.Authenticate)))
+	// opts = append(opts, grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(verifier.Authenticate)))
 	s := grpc.NewServer(opts...)
 	log.Println("Server started")
 	head.RegisterHootFsServiceServer(s, fms)
@@ -161,25 +161,24 @@ func (fms *HootFsServer) StartServer() error {
 func (s *HootFsServer) InitializeHootfsClient(
 	ctx context.Context, request *head.InitializeHootfsClientRequest) (*head.InitializeHootfsClientResponse, error) {
 
-	username := s.verify.GetUsername(ctx)
-	ns_stubs, err := s.vfm.GetNamespaces(vfm.User_ID(username))
+	ns_stubs, err := s.vfm.GetNamespaces(vfm.User_ID(singleUser))
 
 	if err == vfm.ErrUserDoesNotExist {
 		// If the user does not exist, we will make it a namespace.
-		err = s.vfm.CreateUser(vfm.User_ID(username))
+		err = s.vfm.CreateUser(vfm.User_ID(singleUser))
 		if err != nil {
 			return &head.InitializeHootfsClientResponse{NamespaceRoot: nil}, err
 		}
 
 		nsid, err := s.vfm.CreateNamespace("User Namespace",
-			vfm.User_ID(username))
+			vfm.User_ID(singleUser))
 		if err != nil {
 			return &head.InitializeHootfsClientResponse{NamespaceRoot: nil}, err
 		}
 
 		// Then we will make a root folder in the namespace.
 		void, err := s.vfm.CreateFreeObjectInNamespace(nsid,
-			vfm.User_ID(username), "Root", vfm.VFM_Dir_Type)
+			vfm.User_ID(singleUser), "Root", vfm.VFM_Dir_Type)
 		if err != nil {
 			return &head.InitializeHootfsClientResponse{NamespaceRoot: nil}, err
 		}
@@ -194,7 +193,7 @@ func (s *HootFsServer) InitializeHootfsClient(
 	// Otherwise, this user should have only one namespace for now.
 	sole_ns := ns_stubs[0]
 
-	ns, err := s.vfm.GetNamespaceDetails(sole_ns.NSID, vfm.User_ID(username))
+	ns, err := s.vfm.GetNamespaceDetails(sole_ns.NSID, vfm.User_ID(singleUser))
 
 	if err != nil {
 		return &head.InitializeHootfsClientResponse{NamespaceRoot: nil}, err
@@ -214,9 +213,8 @@ func (s *HootFsServer) GetDirectoryContents(
 			status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
-	username := s.verify.GetUsername(ctx)
 	contents, err := s.vfm.GetObjectDetails(vfm.VO_ID(dirUuid),
-		vfm.User_ID(username))
+		vfm.User_ID(singleUser))
 
 	if err != nil {
 		return &head.GetDirectoryContentsResponse{}, err
@@ -266,11 +264,9 @@ func (s *HootFsServer) MakeDirectory(
 			status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
-	username := s.verify.GetUsername(ctx)
-
 	// Directories only need to be made in the permanent store.
 	void, err := s.vfm.CreateObject(vfm.VO_ID(parentUuid),
-		vfm.User_ID(username), request.DirName, vfm.VFM_Dir_Type)
+		vfm.User_ID(singleUser), request.DirName, vfm.VFM_Dir_Type)
 
 	if err != nil {
 		return &head.MakeDirectoryResponse{}, err
@@ -310,11 +306,9 @@ func (s *HootFsServer) AddNewFile(
 			status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
-	username := s.verify.GetUsername(ctx)
-
 	// Create the file in the permanent store.
 	void, err := s.vfm.CreateObject(vfm.VO_ID(parentUuid),
-		vfm.User_ID(username), request.FileName, vfm.VFM_File_Type)
+		vfm.User_ID(singleUser), request.FileName, vfm.VFM_File_Type)
 
 	if err != nil {
 		return &head.AddNewFileResponse{}, nil
@@ -330,12 +324,12 @@ func (s *HootFsServer) AddNewFile(
 	// Send make new file request to all cluster nodes.
 	for destId := range s.csc.Nodes {
 		if destId != s.csc.NodeId {
-			s.csc.SendAddFile(destId, username, parentUuid,
+			s.csc.SendAddFile(destId, singleUser, parentUuid,
 				uuid.UUID(void), request.FileName, request.Contents)
 		}
 	}
 
-	newFileInfo := hootfs.FileInfo{NamespaceId: username,
+	newFileInfo := hootfs.FileInfo{NamespaceId: singleUser,
 		ObjectId: uuid.UUID(void)}
 
 	// Local machine work... could throw an error, but this is OK as long
@@ -357,17 +351,15 @@ func (s *HootFsServer) UpdateFileContents(
 			status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
-	username := s.verify.GetUsername(ctx)
-
 	// In theory, this file should exist on at least one machine
 	// if we are updating it...
 	for destId := range s.csc.Nodes {
 		if destId != s.csc.NodeId {
-			s.csc.SendUpdateFileContentsRequest(destId, username, fileUuid, request.Contents)
+			s.csc.SendUpdateFileContentsRequest(destId, singleUser, fileUuid, request.Contents)
 		}
 	}
 
-	newFileInfo := hootfs.FileInfo{NamespaceId: username, ObjectId: fileUuid}
+	newFileInfo := hootfs.FileInfo{NamespaceId: singleUser, ObjectId: fileUuid}
 
 	// If this file does not exist on this machine, an error may be thrown here.
 	// This is not a big deal, since the file should exist on another machine
@@ -387,9 +379,7 @@ func (s *HootFsServer) GetFileContents(
 		return &head.GetFileContentsResponse{}, status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
-	username := s.verify.GetUsername(ctx)
-
-	newFileInfo := hootfs.FileInfo{NamespaceId: username, ObjectId: fileUuid}
+	newFileInfo := hootfs.FileInfo{NamespaceId: singleUser, ObjectId: fileUuid}
 	contents, err := s.fmg.ReadFile(&newFileInfo)
 
 	// This is the case where the file is on the given machine.
