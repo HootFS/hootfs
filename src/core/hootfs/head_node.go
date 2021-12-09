@@ -35,6 +35,7 @@ type HootFsServer struct {
 	csc cluster.ClusterServiceClient
 	dc  discover.DiscoverClient
 
+	cs      cluster.ClusterServer
 	fmg     *hootfs.FileManager
 	vfm     vfm.VirtualFileManager
 	vfmg    *hootfs.VirtualFileManager
@@ -51,10 +52,13 @@ func NewHootFsServer(dip string, fmg *hootfs.FileManager,
 		return nil
 	}
 
+	cluster_server := cluster.NewClusterServer(fmg, vfmg)
+
 	return &HootFsServer{
 		dc:      *discover.NewDiscoverClient(dip),
 		fmg:     fmg,
 		vfm:     meta_vfm,
+		cs:      *cluster_server,
 		vfmg:    vfmg,
 		verify:  nil,
 		ns_root: uuid.Nil,
@@ -92,6 +96,9 @@ func (fms *HootFsServer) GetDirectoryContentsAsProto(dirId uuid.UUID) ([]*head.O
 }
 
 func (fms *HootFsServer) StartServer() error {
+	// Start cluster server.
+	fms.cs.StartServer()
+
 	// First start server.
 	lis, err := net.Listen("tcp", headPort)
 	log.Println("Starting Server")
@@ -103,6 +110,7 @@ func (fms *HootFsServer) StartServer() error {
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
+
 	var opts []grpc.ServerOption
 	// opts = append(opts, grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(verifier.Authenticate)))
 	s := grpc.NewServer(opts...)
@@ -138,6 +146,8 @@ func (fms *HootFsServer) StartServer() error {
 		for {
 			time.Sleep(nodeGetActiveDurr * time.Second)
 			clusterMap, err := fms.dc.GetActive()
+
+			log.Println(clusterMap)
 
 			if err != nil {
 				// TODO
@@ -324,8 +334,13 @@ func (s *HootFsServer) AddNewFile(
 	// Send make new file request to all cluster nodes.
 	for destId := range s.csc.Nodes {
 		if destId != s.csc.NodeId {
-			s.csc.SendAddFile(destId, singleUser, parentUuid,
+			log.Println("Sending file to : ", destId)
+			err := s.csc.SendAddFile(destId, singleUser, parentUuid,
 				uuid.UUID(void), request.FileName, request.Contents)
+
+			if err != nil {
+				log.Println(err)
+			}
 		}
 	}
 
