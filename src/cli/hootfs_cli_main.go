@@ -122,27 +122,36 @@ func main() {
 		log.Fatal(err)
 	}
 
-	add_res, err := rpcClient.AddNewFile(context.Background(),
-		&head.AddNewFileRequest{
-			DirId:    root_res.NamespaceRoot,
-			FileName: "NewFile.txt",
-			Contents: []byte{'M', 'E', 'H'},
-		})
+	// add_res, err := rpcClient.AddNewFile(context.Background(),
+	// 	&head.AddNewFileRequest{
+	// 		DirId:    root_res.NamespaceRoot,
+	// 		FileName: "NewFile.txt",
+	// 		Contents: []byte{'M', 'E', 'H'},
+	// 	})
+
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	look_up_res, err := rpcClient.GetDirectoryContents(context.Background(),
+		&head.GetDirectoryContentsRequest{DirId: root_res.NamespaceRoot})
 
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	look_up_id := look_up_res.Objects[0].ObjectId
 
 	contents_res, err := rpcClient.GetFileContents(context.Background(),
 		&head.GetFileContentsRequest{
-			FileId: add_res.FileId,
+			FileId: look_up_id,
 		})
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Panicln("File Found : ", contents_res.Contents)
+	log.Println("File Found : ", contents_res.Contents)
 
 	// // run a "shell" where commands can be typed
 	// sc := bufio.NewScanner(os.Stdin)
