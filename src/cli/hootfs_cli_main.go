@@ -122,25 +122,33 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// add_res, err := rpcClient.AddNewFile(context.Background(),
-	// 	&head.AddNewFileRequest{
-	// 		DirId:    root_res.NamespaceRoot,
-	// 		FileName: "NewFile.txt",
-	// 		Contents: []byte{'M', 'E', 'H'},
-	// 	})
+	// ADD FILE TEST.
+	/*
+		add_res, err := rpcClient.AddNewFile(context.Background(),
+			&head.AddNewFileRequest{
+				DirId:    root_res.NamespaceRoot,
+				FileName: "NewFile.txt",
+				Contents: []byte{'M', 'E', 'H'},
+			})
 
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	look_up_res, err := rpcClient.GetDirectoryContents(context.Background(),
-		&head.GetDirectoryContentsRequest{DirId: root_res.NamespaceRoot})
+		look_up_id := add_res.FileId
+	*/
 
-	if err != nil {
-		log.Fatal(err)
-	}
+	// LOOK UP FILE TEST.
+	/*
+		look_up_res, err := rpcClient.GetDirectoryContents(context.Background(),
+			&head.GetDirectoryContentsRequest{DirId: root_res.NamespaceRoot})
 
-	look_up_id := look_up_res.Objects[0].ObjectId
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		look_up_id := look_up_res.Objects[0].ObjectId
+	*/
 
 	contents_res, err := rpcClient.GetFileContents(context.Background(),
 		&head.GetFileContentsRequest{
