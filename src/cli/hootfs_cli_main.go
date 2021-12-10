@@ -115,14 +115,34 @@ func main() {
 
 	log.Println("Connected To Server!")
 
-	ns_root_id, err := rpcClient.InitializeHootfsClient(context.Background(),
+	root_res, err := rpcClient.InitializeHootfsClient(context.Background(),
 		&head.InitializeHootfsClientRequest{})
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Println("Root ID: ", ns_root_id)
+	add_res, err := rpcClient.AddNewFile(context.Background(),
+		&head.AddNewFileRequest{
+			DirId:    root_res.NamespaceRoot,
+			FileName: "NewFile.txt",
+			Contents: []byte{'M', 'E', 'H'},
+		})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	contents_res, err := rpcClient.GetFileContents(context.Background(),
+		&head.GetFileContentsRequest{
+			FileId: add_res.FileId,
+		})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Panicln("File Found : ", contents_res.Contents)
 
 	// // run a "shell" where commands can be typed
 	// sc := bufio.NewScanner(os.Stdin)
