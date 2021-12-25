@@ -13,6 +13,7 @@ message UUID {
 }
 
 // ------------ InitializeHootfsClient Messages ---------------
+
 message InitializeHootfsClientRequest {
   string session_key = 1;
 }
@@ -160,6 +161,7 @@ message RemoveObjectResponse {
 service HootFsService {
   rpc InitializeHootfsClient(InitializeHootfsClientRequest)
       returns (InitializeHootfsClientResponse);
+  
 
   rpc GetDirectoryContents(GetDirectoryContentsRequest)
       returns (GetDirectoryContentsResponse);

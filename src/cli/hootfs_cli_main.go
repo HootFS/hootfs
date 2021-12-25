@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"os"
-	"strings"
 
 	"github.com/google/uuid"
 	head "github.com/hootfs/hootfs/protos"
@@ -103,6 +102,7 @@ func main() {
 
 	// connect to the rpc
 	var grpcOpts []grpc.DialOption
+	grpcOpts = append(grpcOpts, grpc.WithInsecure())
 	conn, err := grpc.Dial(serverAddr+connectingPort, grpcOpts...)
 	if err != nil {
 		// failed to connect?
@@ -113,12 +113,60 @@ func main() {
 	// initialize rpc from connection
 	rpcClient := head.NewHootFsServiceClient(conn)
 
-	// run a "shell" where commands can be typed
-	sc := bufio.NewScanner(os.Stdin)
-	for {
-		fmt.Print("hootfs> ")
-		sc.Scan()
-		cmd := sc.Text()
-		executeCommand(strings.Fields(cmd), rpcClient)
+	log.Println("Connected To Server!")
+
+	root_res, err := rpcClient.InitializeHootfsClient(context.Background(),
+		&head.InitializeHootfsClientRequest{})
+
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	// ADD FILE TEST.
+	/*
+		add_res, err := rpcClient.AddNewFile(context.Background(),
+			&head.AddNewFileRequest{
+				DirId:    root_res.NamespaceRoot,
+				FileName: "NewFile.txt",
+				Contents: []byte{'M', 'E', 'H'},
+			})
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		look_up_id := add_res.FileId
+	*/
+
+	// LOOK UP FILE TEST.
+	/*
+		look_up_res, err := rpcClient.GetDirectoryContents(context.Background(),
+			&head.GetDirectoryContentsRequest{DirId: root_res.NamespaceRoot})
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		look_up_id := look_up_res.Objects[0].ObjectId
+	*/
+
+	contents_res, err := rpcClient.GetFileContents(context.Background(),
+		&head.GetFileContentsRequest{
+			FileId: look_up_id,
+		})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("File Found : ", contents_res.Contents)
+
+	// // run a "shell" where commands can be typed
+	// sc := bufio.NewScanner(os.Stdin)
+	// for {
+	// 	fmt.Print("hootfs> ")
+	// 	sc.Scan()
+	// 	cmd := sc.Text()
+	// 	executeCommand(strings.Fields(cmd), rpcClient)
+	// }
 }

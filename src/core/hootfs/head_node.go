@@ -3,16 +3,17 @@ package core
 import (
 	"context"
 	"fmt"
-	google_verifer "github.com/hootfs/hootfs/src/core/auth"
 	"log"
 	"net"
 	"time"
+
+	google_verifer "github.com/hootfs/hootfs/src/core/auth"
+	"github.com/hootfs/hootfs/src/core/vfm"
 
 	uuid "github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	head "github.com/hootfs/hootfs/protos"
 	cluster "github.com/hootfs/hootfs/src/core/cluster"
 	hootfs "github.com/hootfs/hootfs/src/core/file_storage"
@@ -25,6 +26,7 @@ const (
 	headPort          = ":50060"
 	nodePingDurr      = 1
 	nodeGetActiveDurr = 20
+	singleUser        = "Joe"
 )
 
 // File manager Server must deal with
@@ -33,8 +35,11 @@ type HootFsServer struct {
 	csc cluster.ClusterServiceClient
 	dc  discover.DiscoverClient
 
+	cs      cluster.ClusterServer
 	fmg     *hootfs.FileManager
+	vfm     vfm.VirtualFileManager
 	vfmg    *hootfs.VirtualFileManager
+	verify  *google_verifer.Google_verifier
 	ns_root uuid.UUID
 
 	head.UnimplementedHootFsServiceServer
@@ -42,16 +47,25 @@ type HootFsServer struct {
 
 func NewHootFsServer(dip string, fmg *hootfs.FileManager,
 	vfmg *hootfs.VirtualFileManager) *HootFsServer {
+	meta_vfm, err := vfm.NewMetaStore("PROD")
+	if err != nil {
+		return nil
+	}
+
+	cluster_server := cluster.NewClusterServer(fmg, vfmg)
+
 	return &HootFsServer{
 		dc:      *discover.NewDiscoverClient(dip),
 		fmg:     fmg,
+		vfm:     meta_vfm,
+		cs:      *cluster_server,
 		vfmg:    vfmg,
+		verify:  nil,
 		ns_root: uuid.Nil,
 	}
 }
 
 func (fms *HootFsServer) GetDirectoryContentsAsProto(dirId uuid.UUID) ([]*head.ObjectInfo, error) {
-
 	fms.vfmg.RWLock.RLock()
 	defer fms.vfmg.RWLock.RUnlock()
 
@@ -82,15 +96,23 @@ func (fms *HootFsServer) GetDirectoryContentsAsProto(dirId uuid.UUID) ([]*head.O
 }
 
 func (fms *HootFsServer) StartServer() error {
+	// Start cluster server.
+	fms.cs.Init()
+
 	// First start server.
 	lis, err := net.Listen("tcp", headPort)
 	log.Println("Starting Server")
-	verifier := google_verifer.New("https://dev-dewy8ew9.us.auth0.com/userinfo")
+	// verifier := google_verifer.New("https://dev-dewy8ew9.us.auth0.com/userinfo")
+
+	// Store verifier in the server.
+	// fms.verify = verifier
+
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
+
 	var opts []grpc.ServerOption
-	opts = append(opts, grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(verifier.Authenticate)))
+	// opts = append(opts, grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(verifier.Authenticate)))
 	s := grpc.NewServer(opts...)
 	log.Println("Server started")
 	head.RegisterHootFsServiceServer(s, fms)
@@ -125,6 +147,8 @@ func (fms *HootFsServer) StartServer() error {
 			time.Sleep(nodeGetActiveDurr * time.Second)
 			clusterMap, err := fms.dc.GetActive()
 
+			log.Println(clusterMap)
+
 			if err != nil {
 				// TODO
 			} else {
@@ -143,23 +167,51 @@ func (fms *HootFsServer) StartServer() error {
 
 /**
  * Initializes a HootFS client, returning the initialized user's namespace ID
- *
  */
 func (s *HootFsServer) InitializeHootfsClient(
 	ctx context.Context, request *head.InitializeHootfsClientRequest) (*head.InitializeHootfsClientResponse, error) {
-	if s.ns_root != uuid.Nil {
+
+	ns_stubs, err := s.vfm.GetNamespaces(vfm.User_ID(singleUser))
+
+	if err == vfm.ErrUserDoesNotExist {
+		// If the user does not exist, we will make it a namespace.
+		err = s.vfm.CreateUser(vfm.User_ID(singleUser))
+		if err != nil {
+			return &head.InitializeHootfsClientResponse{NamespaceRoot: nil}, err
+		}
+
+		nsid, err := s.vfm.CreateNamespace("User Namespace",
+			vfm.User_ID(singleUser))
+		if err != nil {
+			return &head.InitializeHootfsClientResponse{NamespaceRoot: nil}, err
+		}
+
+		// Then we will make a root folder in the namespace.
+		void, err := s.vfm.CreateFreeObjectInNamespace(nsid,
+			vfm.User_ID(singleUser), "Root", vfm.VFM_Dir_Type)
+		if err != nil {
+			return &head.InitializeHootfsClientResponse{NamespaceRoot: nil}, err
+		}
+
 		return &head.InitializeHootfsClientResponse{
-			NamespaceRoot: &head.UUID{Value: s.ns_root[:]}}, nil
+			NamespaceRoot: &head.UUID{Value: void[:]},
+		}, nil
+	} else if err != nil {
+		return &head.InitializeHootfsClientResponse{NamespaceRoot: nil}, err
 	}
-	dir_id, err := s.vfmg.CreateNewNamespace("root_ns")
+
+	// Otherwise, this user should have only one namespace for now.
+	sole_ns := ns_stubs[0]
+
+	ns, err := s.vfm.GetNamespaceDetails(sole_ns.NSID, vfm.User_ID(singleUser))
+
 	if err != nil {
-		return &head.InitializeHootfsClientResponse{},
-			status.Error(codes.Internal, "Failed to create or find user namespace.")
+		return &head.InitializeHootfsClientResponse{NamespaceRoot: nil}, err
 	}
-	s.ns_root = dir_id
 
 	return &head.InitializeHootfsClientResponse{
-		NamespaceRoot: &head.UUID{Value: dir_id[:]}}, nil
+		NamespaceRoot: &head.UUID{Value: ns.RootObjects[0][:]},
+	}, nil
 }
 
 func (s *HootFsServer) GetDirectoryContents(
@@ -171,16 +223,46 @@ func (s *HootFsServer) GetDirectoryContents(
 			status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
-	contents, err := s.GetDirectoryContentsAsProto(dirUuid)
+	contents, err := s.vfm.GetObjectDetails(vfm.VO_ID(dirUuid),
+		vfm.User_ID(singleUser))
 
 	if err != nil {
-		return &head.GetDirectoryContentsResponse{},
-			status.Error(codes.Internal, fmt.Sprintf("Unable to get directory contents: %v", err))
+		return &head.GetDirectoryContentsResponse{}, err
+	}
+
+	var sos []*head.ObjectInfo
+	subcontents, err := contents.GetSubObjects()
+
+	for _, sc := range subcontents {
+		ot := head.ObjectInfo_DIRECTORY
+		if sc.Type == vfm.VFM_File_Type {
+			ot = head.ObjectInfo_FILE
+		}
+
+		sos = append(sos, &head.ObjectInfo{
+			ObjectId:   &head.UUID{Value: sc.Id[:]},
+			ObjectType: ot,
+			ObjectName: sc.Name,
+		})
 	}
 
 	return &head.GetDirectoryContentsResponse{
-		Objects: contents,
+		Objects: sos,
 	}, nil
+
+	// contents, err := s.GetDirectoryContentsAsProto(dirUuid)
+	// if err != nil {
+	// 	return &head.GetDirectoryContentsResponse{}, err
+	// }
+
+	// if err != nil {
+	// 	return &head.GetDirectoryContentsResponse{},
+	// 		status.Error(codes.Internal, fmt.Sprintf("Unable to get directory contents: %v", err))
+	// }
+
+	// return &head.GetDirectoryContentsResponse{
+	// 	Objects: contents,
+	// }, nil
 }
 
 func (s *HootFsServer) MakeDirectory(
@@ -192,25 +274,37 @@ func (s *HootFsServer) MakeDirectory(
 			status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
-	dirUuid, err := s.vfmg.CreateNewDirectory(request.DirName, parentUuid)
-	if err != nil {
-		return &head.MakeDirectoryResponse{},
-			status.Error(codes.Internal, fmt.Sprintf("Failed to create directory: %v", err))
-	}
+	// Directories only need to be made in the permanent store.
+	void, err := s.vfm.CreateObject(vfm.VO_ID(parentUuid),
+		vfm.User_ID(singleUser), request.DirName, vfm.VFM_Dir_Type)
 
-	// Broadcast directory creation to all other clients.
-	for destId := range s.csc.Nodes {
-		if destId != s.csc.NodeId {
-			// NOTE, In the future we will need some form of error handling here.
-			s.csc.SendMakeDirectory(destId, "USERID", parentUuid, dirUuid, request.DirName)
-		}
+	if err != nil {
+		return &head.MakeDirectoryResponse{}, err
 	}
 
 	return &head.MakeDirectoryResponse{
-		DirId: &head.UUID{
-			Value: dirUuid[:],
-		},
+		DirId: &head.UUID{Value: void[:]},
 	}, nil
+
+	// dirUuid, err := s.vfmg.CreateNewDirectory(request.DirName, parentUuid)
+	// if err != nil {
+	// 	return &head.MakeDirectoryResponse{},
+	// 		status.Error(codes.Internal, fmt.Sprintf("Failed to create directory: %v", err))
+	// }
+
+	// // Broadcast directory creation to all other clients.
+	// for destId := range s.csc.Nodes {
+	// 	if destId != s.csc.NodeId {
+	// 		// NOTE, In the future we will need some form of error handling here.
+	// 		s.csc.SendMakeDirectory(destId, "USERID", parentUuid, dirUuid, request.DirName)
+	// 	}
+	// }
+
+	// return &head.MakeDirectoryResponse{
+	// 	DirId: &head.UUID{
+	// 		Value: dirUuid[:],
+	// 	},
+	// }, nil
 }
 
 func (s *HootFsServer) AddNewFile(
@@ -222,21 +316,36 @@ func (s *HootFsServer) AddNewFile(
 			status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
-	fileUuid, err := s.vfmg.CreateNewFile(request.FileName, parentUuid)
+	// Create the file in the permanent store.
+	void, err := s.vfm.CreateObject(vfm.VO_ID(parentUuid),
+		vfm.User_ID(singleUser), request.FileName, vfm.VFM_File_Type)
 
 	if err != nil {
-		return &head.AddNewFileResponse{},
-			status.Error(codes.Internal, fmt.Sprintf("Error creating new file: %v", err))
+		return &head.AddNewFileResponse{}, nil
 	}
+
+	// fileUuid, err := s.vfmg.CreateNewFile(request.FileName, parentUuid)
+
+	// if err != nil {
+	// 	return &head.AddNewFileResponse{},
+	// 		status.Error(codes.Internal, fmt.Sprintf("Error creating new file: %v", err))
+	// }
 
 	// Send make new file request to all cluster nodes.
 	for destId := range s.csc.Nodes {
 		if destId != s.csc.NodeId {
-			s.csc.SendAddFile(destId, "USERID", parentUuid, fileUuid, request.FileName, request.Contents)
+			log.Println("Sending file to : ", destId)
+			err := s.csc.SendAddFile(destId, singleUser, parentUuid,
+				uuid.UUID(void), request.FileName, request.Contents)
+
+			if err != nil {
+				log.Println(err)
+			}
 		}
 	}
 
-	newFileInfo := hootfs.FileInfo{NamespaceId: "USERID", ObjectId: fileUuid}
+	newFileInfo := hootfs.FileInfo{NamespaceId: singleUser,
+		ObjectId: uuid.UUID(void)}
 
 	// Local machine work... could throw an error, but this is OK as long
 	// as file is stored on some machine??
@@ -244,7 +353,7 @@ func (s *HootFsServer) AddNewFile(
 	s.fmg.WriteFile(&newFileInfo, request.Contents)
 
 	return &head.AddNewFileResponse{
-		FileId: &head.UUID{Value: fileUuid[:]},
+		FileId: &head.UUID{Value: void[:]},
 	}, nil
 }
 
@@ -261,11 +370,11 @@ func (s *HootFsServer) UpdateFileContents(
 	// if we are updating it...
 	for destId := range s.csc.Nodes {
 		if destId != s.csc.NodeId {
-			s.csc.SendUpdateFileContentsRequest(destId, "USERID", fileUuid, request.Contents)
+			s.csc.SendUpdateFileContentsRequest(destId, singleUser, fileUuid, request.Contents)
 		}
 	}
 
-	newFileInfo := hootfs.FileInfo{NamespaceId: "USERID", ObjectId: fileUuid}
+	newFileInfo := hootfs.FileInfo{NamespaceId: singleUser, ObjectId: fileUuid}
 
 	// If this file does not exist on this machine, an error may be thrown here.
 	// This is not a big deal, since the file should exist on another machine
@@ -285,7 +394,7 @@ func (s *HootFsServer) GetFileContents(
 		return &head.GetFileContentsResponse{}, status.Error(codes.InvalidArgument, cluster.ErrInvalidId.Error())
 	}
 
-	newFileInfo := hootfs.FileInfo{NamespaceId: "USERID", ObjectId: fileUuid}
+	newFileInfo := hootfs.FileInfo{NamespaceId: singleUser, ObjectId: fileUuid}
 	contents, err := s.fmg.ReadFile(&newFileInfo)
 
 	// This is the case where the file is on the given machine.

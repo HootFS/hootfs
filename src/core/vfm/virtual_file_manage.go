@@ -188,6 +188,8 @@ type VirtualFileManager interface {
 
 	// User Focused Functions ----------------------------------------------
 
+	GetNamespaces(member User_ID) ([]Namespace_Stub, error)
+
 	// This simply creates a new Namespace.
 	// 		name    - the name of the Namespace.
 	//		member - the ID of the user creating the Namespace.

@@ -29,7 +29,7 @@ func (osFS) ReadFile(name string) ([]byte, error) {
 }
 
 func (osFS) Mkdir(name string, perm os.FileMode) error {
-	return os.Mkdir(name, perm)
+	return os.MkdirAll(name, perm)
 }
 
 func (osFS) Remove(name string) error {
@@ -130,7 +130,15 @@ func (m *FileManager) WriteFile(fileInfo *FileInfo, contents []byte) error {
 		return ErrNeedFileNotDir
 	}
 
-	return m.Fs.WriteFile(path.Join(m.Root, fileObj.Namespace, fileObj.ParentDir, fileObj.RelativeFilename), contents, 666)
+	// Make sure the directory exists.
+	err := m.Fs.Mkdir(path.Join(m.Root,
+		fileObj.Namespace, fileObj.ParentDir), 0777)
+
+	if err != nil {
+		return err
+	}
+
+	return m.Fs.WriteFile(path.Join(m.Root, fileObj.Namespace, fileObj.ParentDir, fileObj.RelativeFilename), contents, 0777)
 }
 
 func (m *FileManager) ReadFile(fileInfo *FileInfo) ([]byte, error) {

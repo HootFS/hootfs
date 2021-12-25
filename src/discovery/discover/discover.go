@@ -111,8 +111,6 @@ func (d *DiscoverServer) DropIdleAndReset() {
 
 	idleFound := false
 
-	log.Println("Filtering Idle nodes.")
-
 	for ip, nc := range d.nodeMap {
 		// If a ping hasn't been received.
 		if !nc.ping {
@@ -161,6 +159,7 @@ func (d *DiscoverServer) JoinCluster(ctx context.Context, jcr *protos.JoinCluste
 	}
 
 	nodeId := d.nextId
+    log.Printf("Node joined with ID : %d", nodeId)
 	d.nextId++
 
 	// We now have a new Id for our new node.
